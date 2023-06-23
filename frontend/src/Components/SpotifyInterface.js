@@ -2,8 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
+import Button from 'react-bootstrap/Button';
 
-const SpotifyInterface = ({ activePlaylist, setPlaylists }) => {
+
+const SpotifyInterface = ({ activePlaylist, setPlaylists, setTracks }) => {
     const CLIENT_ID = 'b2363da7847344cfa904d18c67075f76';
     const REDIRECT_URI = 'http://localhost:3000';
     const AUTH_ENDPOINT = 'https://accounts.spotify.com/authorize';
@@ -29,6 +31,10 @@ const SpotifyInterface = ({ activePlaylist, setPlaylists }) => {
         searchPlaylists();
     }, [token]);
 
+    useEffect(() => {
+        retrieveActivePlaylist();
+    }, [activePlaylist]);
+
     const logout = () => {
         setToken("");
         window.localStorage.removeItem("token");
@@ -43,23 +49,31 @@ const SpotifyInterface = ({ activePlaylist, setPlaylists }) => {
                 
             }
         }).then((response) => {
-            setPlaylists(response.items);
-            console.log(response);
+            setPlaylists(response.data.items);
         }).catch((err) => console.log(err));
     };
 
     const retrieveActivePlaylist = () => {
+        if (activePlaylist == "") {
+            return
+        }
 
+        axios.get(`https://api.spotify.com/v1/playlists/${activePlaylist}/tracks`, {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        }).then((response) => {
+            console.log(response.data.items);
+            setTracks(response.data.items);
+        }).catch((err) => console.log(err));
     };
 
     return (
-        <div className="App">
-            <header className="App-header">
-                {!token ?
-                    <a href={`${AUTH_ENDPOINT}?client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=${RESPONSE_TYPE}`}>Login
-                        to Spotify</a>
-                    : <button onClick={logout}>Logout</button>}
-            </header>
+        <div style={{marginTop: '30px'}}>
+            {!token ?
+                <a href={`${AUTH_ENDPOINT}?client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=${RESPONSE_TYPE}`}>Login
+                    to Spotify</a>
+                : <Button variant='secondary' onClick={logout}>Logout</Button>}
         </div>
     );
 };

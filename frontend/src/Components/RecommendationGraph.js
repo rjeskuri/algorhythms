@@ -1,34 +1,43 @@
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 
 import { Graph } from "react-d3-graph";
 
 
-const RecommendationGraph = ({}) => {
+const RecommendationGraph = ({ tracks }) => {
 
-    // graph payload (with minimalist structure)
-    const data = {
-        nodes: [
-            { id: "Harry" },
-            { id: "Sally" },
-            { id: "Alice" }
-        ],
-        links: [
-            { source: "Harry", target: "Sally" },
-            { source: "Harry", target: "Alice" },
-        ],
+    const data = () => {
+        if (tracks == null || tracks.length == 0) {
+            return { nodes: [], links: [] }
+        }
+
+        return {
+            nodes: tracks.map((track) => {
+                return (
+                    {
+                        id: track.track.name,
+                        popularity: track.track.popularity,
+                        albumName: track.track.album.name
+                    }
+                )
+            }),
+            links: tracks.flatMap((v, i) =>
+                tracks.slice(i + 1).map(w => { return ( {source: v.track.name, target: w.track.name } ) })
+            )
+        }
     };
 
-    // the graph configuration, just override the ones you need
     const myConfig = {
         nodeHighlightBehavior: true,
+        width: 1200,
+        height: 800,
         node: {
-            color: "black",
+            color: "#DBD3D8",
             size: 1000,
             highlightStrokeColor: "lightgreen",
         },
         link: {
-            color: "darkgrey",
+            color: "#A7B5B9",
             highlightColor: "black",
         },
     };
@@ -42,10 +51,10 @@ const RecommendationGraph = ({}) => {
     };
 
     return (
-        <div style={{width: '1500px'}}>
+        <div style={{width: '100%', height: '100%', marginTop: '30px', marginBottom: '-30px', marginRight: '-30px', backgroundColor: '#2E5E4E', borderRadius: '10px'}}>
             <Graph
-                id="recommendation-graph" // id is mandatory
-                data={data}
+                id="recommendation-graph"
+                data={data()}
                 config={myConfig}
                 onClickNode={onClickNode}
                 onClickLink={onClickLink}
