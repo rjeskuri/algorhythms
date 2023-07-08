@@ -7,7 +7,7 @@ import Button from 'react-bootstrap/Button';
 
 const SpotifyInterface = ({ activePlaylist, setPlaylists, setTracks }) => {
     const CLIENT_ID = 'b2363da7847344cfa904d18c67075f76';
-    const REDIRECT_URI = 'http://localhost:3000';
+    const REDIRECT_URI = 'http://algorhythms-frontend.s3-website-us-east-1.amazonaws.com/';
     const AUTH_ENDPOINT = 'https://accounts.spotify.com/authorize';
     const RESPONSE_TYPE = 'token';
 

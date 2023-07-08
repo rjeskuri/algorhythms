@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  query database
+  AlgoRhythms Backend
 
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
@@ -10,7 +10,7 @@ Globals:
 
 Resources:
 
-  AlgorhythmsAsk:
+  algorhythmsAsk:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
       CodeUri: ./src
@@ -18,9 +18,9 @@ Resources:
       Runtime: python3.10
       Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
         Variables:
-          DATABASE_URL: # Empty value here will pull value from your current env
+          DATABASE_URL: test
 
-  AlgorhythmsTell:
+  algorhythmsTell:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
       CodeUri: ./src
@@ -28,4 +28,4 @@ Resources:
       Runtime: python3.10
       Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
         Variables:
-          DATABASE_URL: # Empty value here will pull value from your current env
+          DATABASE_URL: test
