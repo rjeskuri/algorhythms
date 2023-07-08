@@ -1,9 +1,6 @@
 name: Deploy backend to Lambda
 
-on:
-  push:
-    branches:
-      - main
+on: push
 
 jobs:
   upload:
