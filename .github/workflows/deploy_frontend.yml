@@ -21,6 +21,8 @@ jobs:
 
       - name: Rebuild the dist/ directory
         working-directory: ./frontend
+        env:
+          CI: false
         run: npm run build
 
       - uses: shallwefootball/s3-upload-action@master
