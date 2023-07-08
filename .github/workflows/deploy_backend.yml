@@ -19,8 +19,7 @@ jobs:
           aws-region: us-east-1
 
       - working-directory: ./backend
-        run:
-          - sam build -m requirements.txt --use-container
+        run: sam build -m requirements.txt --use-container
 
       - working-directory: ./backend
         run: sam deploy --no-confirm-changeset --no-fail-on-empty-changeset --stack-name algorhythms --s3-bucket algorhythms-backend --capabilities CAPABILITY_IAM --region us-east-1
