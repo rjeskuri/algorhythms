@@ -16,20 +16,22 @@ jobs:
         with:
           node-version: 18.x
           cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
         working-directory: ./frontend
-        run: npm ci
+        run: npm ci --force
 
       - name: Rebuild the dist/ directory
         working-directory: ./frontend
+        env:
+          CI: false
         run: npm run build
 
       - uses: shallwefootball/s3-upload-action@master
-        working-directory: ./frontend
         with:
-          aws_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY}}
+          aws_key_id: ${{ secrets.AWS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws_bucket: ${{ secrets.AWS_BUCKET }}
-          source_dir: 'build'
+          source_dir: 'frontend/build'
           destination_dir: ''
