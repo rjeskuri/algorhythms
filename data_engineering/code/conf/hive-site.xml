@@ -1,0 +1,7 @@
+<configuration>
+  <property>
+    <name>hive.metastore.warehouse.dir</name>
+    <value>../data/spark_table_warehouse</value>
+    <description>Hive Metastore location</description>
+  </property>
+</configuration>
