@@ -5,6 +5,7 @@ import configparser
 from mylib.logger import Log4J
 import os
 import datetime
+import sys
 
 if __name__ == "__main__":
     spark_conf = SparkConf()
@@ -32,8 +33,17 @@ if __name__ == "__main__":
     tracktrackNodeRelationsDf = spark.table("track_track_train_graph_node_rltns_tbl")  # Load full DF
     tracksTrainDf = spark.table("tracks_train_data_tbl") # Load full DataFrame
 
+    # Check if command-line arguments are provided
+    # Note: if called from shell script, it will always pass an argument from there
+    if len(sys.argv) > 1:
+        # Get the sample_size value from the command-line argument
+        sample_size = int(sys.argv[1])
+    else:
+        # Use the default sample_size value
+        sample_size = 100000 # i.e. default size
+
     # Create node relationships sample
-    tracktrackNodeRelationsDf_sample = tracktrackNodeRelationsDf.sample(False, 0.1, seed=699).limit(100000)
+    tracktrackNodeRelationsDf_sample = tracktrackNodeRelationsDf.sample(False, 0.1, seed=699).limit(sample_size)
 
     # IMPORTANT STEP: Cache the DataFrame. Else, the directed acyclic graph will restart after .count() or .show() in the logger calls
     # If the DAG restarts, it will make a new .sample() which will not be the same 100,000 rows it intially produced.
@@ -59,9 +69,9 @@ if __name__ == "__main__":
     timeStamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
     tracksTrainDf_sample.coalesce(1).write  \
-        .csv(spark.conf.get("spark.sql.warehouse.dir") + '/100k_samples/train_spotifyapi_100k_sample_{}'.format(timeStamp)
+        .csv(spark.conf.get("spark.sql.warehouse.dir") + '/100k_samples/train_spotifyapi_{}_sample_{}'.format(str(sample_size),timeStamp)
              , header=True, mode='overwrite')
 
     tracktrackNodeRelationsDf_sample.coalesce(1).write  \
-        .csv(spark.conf.get("spark.sql.warehouse.dir") + '/100k_samples/train_graph_node_reltns_100k_sample_{}'.format(timeStamp)
+        .csv(spark.conf.get("spark.sql.warehouse.dir") + '/100k_samples/train_graph_node_reltns_{}_sample_{}'.format(str(sample_size),timeStamp)
              , header=True, mode='overwrite')
