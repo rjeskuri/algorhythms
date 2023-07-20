@@ -70,10 +70,6 @@ if __name__ == "__main__":
     playlistTrainDf, playlistEvalDf, playlistTestDf = playlistDf.randomSplit([0.8, 0.1, 0.1],seed=699)
 
     logger.info("Completed split to train, evaluation and test datasets.....")
-    logger.info("Train data set : A total of {} rows have been generated".format(playlistTrainDf.count()))
-    logger.info("Evaluation data set : A total of {} rows have been generated".format(playlistEvalDf.count()))
-    logger.info("Test data set : A total of {} rows have been generated".format(playlistTestDf.count()))
-
     logger.info("Moving onto saving information into Spark tables.....")
 
     #  Load Playlist data to Spark tables
@@ -82,6 +78,10 @@ if __name__ == "__main__":
 
     logger.info(spark.catalog.currentDatabase())
     logger.info(spark.catalog.listDatabases())
+
+    playlistDf.write \
+        .mode("overwrite") \
+        .saveAsTable("playlist_all_data_tbl")
 
     playlistTrainDf.write \
         .mode("overwrite") \
@@ -96,9 +96,9 @@ if __name__ == "__main__":
         .saveAsTable("playlist_test_data_tbl")
 
     #  Gather the unique tracks and save to csv (Will be used in standard Python script to process)
-    tracksTrainDf = playlistTrainDf.select(col('track_uri')).distinct()
-    tracksTrainDf.write  \
-        .csv("file://" + spark.conf.get("spark.sql.warehouse.dir") + "/unique_train_tracks_data")
+    tracksAllDf = playlistDf.select(col('track_uri')).distinct()
+    tracksAllDf.write  \
+        .csv("file://" + spark.conf.get("spark.sql.warehouse.dir") + "/unique_tracks"+ "/unique_all_tracks_data")
 
     logger.info("Stopping application...")
     spark.stop()

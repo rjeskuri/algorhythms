@@ -5,9 +5,15 @@ from pyspark.sql import functions as f  # Doing it this way to not affect standa
 import configparser
 from mylib.logger import Log4J
 import os
-
+import sys
 
 if __name__ == "__main__":
+    # Note: when called from 'batch-3' shell script, it will always pass an argument from there with 'all' as default
+    if len(sys.argv) > 1:
+        file_choice = sys.argv[1]  # Get the file_choice value from the command-line argument
+    else:
+        file_choice = 'all'  # i.e. default file_choice is 'all'
+
     spark_conf = SparkConf()
     config_options = configparser.ConfigParser()
     conf_dir = os.environ.get('SPARK_CONF_DIR') or 'conf'  # Options to support Spark CLuster and local modes
@@ -24,14 +30,22 @@ if __name__ == "__main__":
     logger.info("Starting Spark application....")
     logger.info("The SPARK_CONF_DIR is set to {}".format(conf_dir))
 
-    #  Load data from the algorhythms_db --> playlist_data_tbl
+    #  Load data from the algorhythms_db --> playlist_{}_data_tbl
     logger.info(spark.catalog.listDatabases())
     logger.info(spark.catalog.listTables("ALGORHYTHMS_DB"))
     spark.catalog.setCurrentDatabase("ALGORHYTHMS_DB")
-    playlistTrainDf = spark.table("playlist_train_data_tbl")
+    logger.info("Will attempt to read from playlist_{}_data_tbl".format(file_choice))
+    try:
+        # Attempt to read from the table
+        playlistDf = spark.table("playlist_{}_data_tbl".format(file_choice))
+        logger.info("Successfully read from playlist_{}_data_tbl".format(file_choice))
+    except Exception as e:
+        logger.error("Error: {}".format(e))
+        logger.info("Stopping application due to error...")
+        spark.stop()
 
     # Select only the required columns to process further
-    playlistTrainDf = playlistTrainDf.select(
+    playlistDf = playlistDf.select(
         "playListName",
         "numberTracks",
         "positionInPlaylist",
@@ -39,11 +53,11 @@ if __name__ == "__main__":
     )
 
     # Repartition to be able to reduce shuffle-sorting during joins and calculations
-    playlistTrainDf = playlistTrainDf.repartition("playListName")
+    playlistDf = playlistDf.repartition("playListName")
 
     # Generate all unique pairs using join within playlists that also prevents duplicates 'from' and 'to' pairs
-    playlistSongsPairsDf = playlistTrainDf.alias("from").join(
-        playlistTrainDf.select("playListName", "track_uri", "positionInPlaylist").alias("to"),
+    playlistSongsPairsDf = playlistDf.alias("from").join(
+        playlistDf.select("playListName", "track_uri", "positionInPlaylist").alias("to"),
         (col("from.track_uri") < col("to.track_uri")) & (col("from.playListName") == col("to.playListName"))
     )
 
@@ -61,7 +75,8 @@ if __name__ == "__main__":
 
     # For rows that share exact same combination of 'from_track_uri' and 'to_track_uri' aggregate the weightedScore
     aggregatedSongPairScoresDf = songPairScoresDf.groupBy('from_track_uri', 'to_track_uri').agg(f.sum('weightedScore').alias('totalScore'))
-    logger.info("Number of unique relations mined from song pairs = {}".format(aggregatedSongPairScoresDf.count()))
+    # Note: The below .count() is intentionally commented out since it initiates a full DAG for the transformation, which is an expensive process
+    #logger.info("Number of unique relations mined from song pairs = {}".format(aggregatedSongPairScoresDf.count()))
 
     # Swap column names and copy the DataFrame
     # i.e. this is done since the aggregatedSongPairScoresDf only has one row for each association
@@ -87,40 +102,22 @@ if __name__ == "__main__":
         collect_list(struct('to_track_uri', 'totalScore')).alias('relationships')
     )
     denseGroupedTracksDf = denseGroupedTracksDf.withColumnRenamed('from_track_uri', 'track')
-    logger.info("Number of rows in dense representation for each unique song as a row = {}".format(denseGroupedTracksDf.count()))
-
-    #  Neo4J Boiler plate code for Spark Connector
-    '''
-    # Set the Neo4j connection properties
-    neo4j_connection = {
-        "url": "bolt://localhost:7687",
-        "user": "neo4j",
-        "password": "password",
-        "authentication.type": "basic"
-    }
-
-    # Write the denseGroupedTracksDf DataFrame to Neo4j
-    denseGroupedTracksDf.write.format("org.neo4j.spark.DataSource") \
-        .option("url", neo4j_connection["url"]) \
-        .option("authentication.type", neo4j_connection["authentication.type"]) \
-        .option("user", neo4j_connection["user"]) \
-        .option("password", neo4j_connection["password"]) \
-        .option("labels", ":Track") \
-        .option("relationship", "RELATED_TO") \
-        .option("relationship.save.strategy", "keys") \
-        .mode("Overwrite") \
-        .save()
-    '''
+    # Note: The below .count() is intentionally commented out since it initiates a full DAG for the transformation, which is an expensive process
+    #logger.info("Number of rows in dense representation for each unique song as a row = {}".format(denseGroupedTracksDf.count()))
 
     # Write to Spark database as a backup incase it is needed if the Neo4J instance is shut down and new one is created
+    logger.info("Starting to write to track_track_{}_graph_node_rltns_tbl.....".format(file_choice))
     denseGroupedTracksDf.write \
         .mode("overwrite") \
-        .saveAsTable("track_track_train_graph_node_rltns_tbl")
+        .saveAsTable("track_track_{}_graph_node_rltns_tbl".format(file_choice))
+    logger.info("Finished writing to track_track_{}_graph_node_rltns_tbl.....".format(file_choice))
 
     # Optional: Write also the 'aggregatedSongPairScoresDf' to storage just in case it is useful
+    logger.info("Starting to write to track_track_{}_graph_pair_wts_tbl.....".format(file_choice))
     aggregatedSongPairScoresDf.write \
         .mode("overwrite") \
-        .saveAsTable("track_track_train_graph_pair_wts_tbl")
+        .saveAsTable("track_track_{}_graph_pair_wts_tbl".format(file_choice))
+    logger.info("Finished writing to track_track_{}_graph_pair_wts_tbl.....".format(file_choice))
 
     logger.info("Stopping application...")
     spark.stop()

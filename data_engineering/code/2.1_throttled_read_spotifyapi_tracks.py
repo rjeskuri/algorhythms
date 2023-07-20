@@ -7,8 +7,9 @@ If running in Great Lakes, UMich environment , launch a 'Jupyter Notebook' envir
 2. Once done, run the script in Python command line terminal
 
 Prompts:
-Prompt 1 = Starting row number of the combined dataframe to start query to SpotifyAPI from
-Prompt 2 = Number of records to pull up in this run (Empty means all records till end)
+Prompt 1 = File choice to be used. Default is 'all' if nothing is specified
+Prompt 2 = Starting row number of the combined dataframe to start query to SpotifyAPI from
+Prompt 3 = Number of records to pull up in this run (Empty means all records till end)
 """
 
 import os
@@ -61,8 +62,8 @@ def throttled_tracks_request(tracks_uri_list, tracksDf, tracksSchema):
                 batch_retry_cnt = 0  # Reset batch retry count to 0
                 print("Batch {} has been processed successfully.".format(cnt+1))
                 if cnt % 50 == 0:
-                    print("At Batch {}. Pushing data to temp storage 'temp_tracks_train_spotifyapi.csv'".format(cnt + 1))
-                    tracksDf.to_csv(csvReadDirectory + "/temp_tracks_train_spotifyapi.csv", index=False)
+                    print("At Batch {}. Pushing data to temp storage 'temp_tracks_{}_spotifyapi.csv'".format(cnt + 1,file_choice))
+                    tracksDf.to_csv(csvReadDirectory + "/temp_tracks_{}_spotifyapi.csv".format(file_choice), index=False)
 
             except SpotifyException as e:
                 if e.http_status == 429:
@@ -98,8 +99,15 @@ if __name__ == "__main__":
     #  sample_values = playlistDf.select('track_uri').sample(False, 0.1).limit(1010).collect()
     #  track_uri_list = [row['track_uri'] for row in sample_values]
 
+    # From command-line, provide user ability to specify 'all', 'train' or any other folder that is format 'unique_<argument>_tracks_data'
+    if len(sys.argv) > 1:
+        file_choice = sys.argv[1] # Get the file_choice value from the command-line argument
+    else:
+        # Use the default sample_size value
+        file_choice = 'all' # i.e. default size
+
     # Get a list of CSV files in the folder
-    track_csv_files = glob.glob('{}/*.csv'.format(csvReadDirectory + "/unique_train_tracks_data"))
+    track_csv_files = glob.glob('{}/*.csv'.format(csvReadDirectory + "/unique_tracks" + "/unique_{}_tracks_data".format(file_choice)))
     # Read CSV files into separate DataFrames for each CSV.
     # Since data starts from 1st file in CSV produced by Spark, we will need to assign header
     dataframesList = [pd.read_csv(file, header=None, names=['track_uri']) for file in track_csv_files]
@@ -107,8 +115,9 @@ if __name__ == "__main__":
     # Add a column to be able to track the position of the rows, just in case it is needed
     combined_tracks_df['pos'] = list(range(1, combined_tracks_df.shape[0] + 1))
 
-    startPos = int(sys.argv[1]) if len(sys.argv) > 1 else 0
-    endPos = int(sys.argv[2]) + startPos if len(sys.argv) > 1 else len(combined_tracks_df)
+    # Note: sys.argv[1] is always the program name itself.
+    startPos = int(sys.argv[2]) if len(sys.argv) > 2 else 0
+    endPos = int(sys.argv[3]) + startPos if len(sys.argv) > 3 else len(combined_tracks_df)
 
     print("Starting position with respect to Dataframe to begin queries = {}".format(startPos))
     print("End position with respect to Dataframe to end queries = {}".format(endPos))
@@ -155,15 +164,12 @@ if __name__ == "__main__":
         "time_signature": int
     }
 
-    # Create an empty DataFrame with the defined schema
-    #  tracksTrainDf = spark.createDataFrame([], tracksSchema)  # Spark code
     # Create an empty DataFrame with the defined columns and assign schema
-    tracksTrainDf = pd.DataFrame(columns=tracksSchema.keys()).astype(tracksSchema)
+    tracksDf = pd.DataFrame(columns=tracksSchema.keys()).astype(tracksSchema)
 
     #  Throttle responses using 'Several tracks' API and  write to Spark tracks DataFrame
-    #  tracksTrainDf = throttled_tracks_request(track_uri_list, logger, tracksTrainDf, tracksSchema)
-    tracksTrainDf = throttled_tracks_request(track_uri_list, tracksTrainDf, tracksSchema)  # Spark code
-    print("Number of tracks in the tracksDf = {}".format(tracksTrainDf['track_uri'].count()))
-    print(tracksTrainDf.head())
+    tracksDf = throttled_tracks_request(track_uri_list, tracksDf, tracksSchema)  # Spark code
+    print("Number of tracks in the tracksDf = {}".format(tracksDf['track_uri'].count()))
+    print(tracksDf.head())
 
-    tracksTrainDf.to_csv(csvReadDirectory + "/spotifyapi_tracks_train.csv", index=False)
+    tracksDf.to_csv(csvReadDirectory + "/spotifyapi_tracks_{}.csv".format(file_choice), index=False)

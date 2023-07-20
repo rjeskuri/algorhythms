@@ -34,7 +34,7 @@ if __name__ == "__main__":
     tracksTrainDf = spark.table("tracks_train_data_tbl") # Load full DataFrame
 
     # Check if command-line arguments are provided
-    # Note: if called from shell script, it will always pass an argument from there
+    # Note: when called from 'batch-5' shell script, it will always pass an argument from there with 100,000 as default
     if len(sys.argv) > 1:
         # Get the sample_size value from the command-line argument
         sample_size = int(sys.argv[1])

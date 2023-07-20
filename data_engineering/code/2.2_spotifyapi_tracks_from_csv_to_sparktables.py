@@ -4,9 +4,16 @@ from pyspark.sql.types import StructType, StructField, StringType, DoubleType, I
 import configparser
 from mylib.logger import Log4J
 import os
+import sys
 
 
 if __name__ == "__main__":
+    # Note: when called from 'batch-2.2' shell script, it will always pass an argument from there with 'all' as default
+    if len(sys.argv) > 1:
+        file_choice = sys.argv[1]  # Get the file_choice value from the command-line argument
+    else:
+        file_choice = 'all'  # i.e. default file_choice is 'all'
+
     spark_conf = SparkConf()
     config_options = configparser.ConfigParser()
     conf_dir = os.environ.get('SPARK_CONF_DIR') or 'conf'  # Options to support Spark CLuster and local modes
@@ -48,14 +55,18 @@ if __name__ == "__main__":
     ])
 
     # Create the DataFrame by reading the CSV with the defined schema
-    tracksTrainDf = spark.read.csv(csvReadDirectory + "/spotifyapi_tracks_train.csv"
-                                   , schema=tracksSchema, header=True)
-    logger.info("The number of entries in the Dataframe is : {}".format(tracksTrainDf.count()))
+    try:
+        tracksDf = spark.read.csv(csvReadDirectory + "/spotifyapi_tracks_{}.csv".format(file_choice)
+                                       , schema=tracksSchema, header=True)
+        logger.info("The number of entries in the Dataframe is : {}".format(tracksDf.count()))
+        # Write to table in the Spark Database
+        tracksDf.write \
+            .mode("overwrite") \
+            .saveAsTable("tracks_{}_data_tbl".format(file_choice))
+    except Exception as e:
+        logger.error("Error: {}".format(e))
+        logger.info("Stopping application due to error...")
+        spark.stop()
 
-    # Write to table in the Spark Database
-    tracksTrainDf.write \
-        .mode("overwrite") \
-        .saveAsTable("tracks_train_data_tbl")
-
-    logger.info("Stopping application...")
+    logger.info("Stopping application after successful completion...")
     spark.stop()
