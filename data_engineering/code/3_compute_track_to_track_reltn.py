@@ -6,6 +6,7 @@ import configparser
 from mylib.logger import Log4J
 import os
 import sys
+import pandas as pd
 
 if __name__ == "__main__":
     # Note: when called from 'batch-3' shell script, it will always pass an argument from there with 'all' as default
@@ -29,6 +30,15 @@ if __name__ == "__main__":
     logger = Log4J(spark)
     logger.info("Starting Spark application....")
     logger.info("The SPARK_CONF_DIR is set to {}".format(conf_dir))
+
+    # Load feature audio_tracks information dataframe and get list of tracks with 'NaN' features.
+    csvReadDirectory = dict(config_options.items("SPARK_APP_CONFIGS")).get('spark.sql.warehouse.dir')
+    spotifyCsvFile = "{}/{}" \
+        .format(csvReadDirectory, 'spotifyapi_tracks_all.csv')
+    logger.info("Spotify feature data CSV is : {}".format(spotifyCsvFile))
+    featureDf = pd.read_csv(spotifyCsvFile)
+    na_feature_tracks = featureDf[featureDf.isna().any(axis=1)]['track_uri'].values.tolist()
+    logger.info("There are {} Spotify songs that pulled up with 'NaN' features from the Spotify API calls.".format(len(na_feature_tracks)))
 
     #  Load data from the algorhythms_db --> playlist_{}_data_tbl
     logger.info(spark.catalog.listDatabases())
@@ -54,6 +64,9 @@ if __name__ == "__main__":
 
     # Repartition to be able to reduce shuffle-sorting during joins and calculations
     playlistDf = playlistDf.repartition("playListName")
+
+    # Remove any entries where the track_uri does not have valid features (i.e. are rows in featureDf with 'NaN' values)
+    playlistDf = playlistDf.filter(~col('track_uri').isin(na_feature_tracks))
 
     # Generate all unique pairs using join within playlists that also prevents duplicates 'from' and 'to' pairs
     playlistSongsPairsDf = playlistDf.alias("from").join(
