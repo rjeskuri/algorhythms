@@ -2,23 +2,19 @@ import torch
 import pandas as pd
 from annoy import AnnoyIndex
 
-def calculate_similarity_annoy(embedding_path, new_songs_path, top_k, output_path):
-    # Load embeddings and new songs from PyTorch files
-    embeddings = torch.load(embedding_path)
+def load_index_and_query(new_songs_path, index_path, top_k, output_path):
+    # Load new songs from PyTorch file
     new_songs = torch.load(new_songs_path)
 
-    # Convert tensors to numpy arrays
-    embeddings = embeddings.numpy()
+    # Convert tensor to numpy array
     new_songs = new_songs.numpy()
 
-    # Get the size of the embeddings
-    f = embeddings.shape[1]
+    # Get the size of the new songs embeddings
+    f = new_songs.shape[1]
 
-    # Build the Annoy index
+    # Load the Annoy index
     t = AnnoyIndex(f, 'angular')  # 'angular' uses the cosine distance
-    for i, emb in enumerate(embeddings):
-        t.add_item(i, emb)
-    t.build(10)  # 10 trees - increase this for more precision
+    t.load(index_path)  # super fast, will just mmap the file
 
     # Initialize lists to store indices and similarities
     top_k_indices = []
@@ -46,5 +42,4 @@ def calculate_similarity_annoy(embedding_path, new_songs_path, top_k, output_pat
     print("Top K similarities, indices and merged data have been saved!")
 
 # Example of how to call the function
-#calculate_similarity_annoy('embeddings.pt', 'new_songs.pt', 5, 'models/data/')
-
+load_index_and_query('new_songs.pt', 'models/data/annoy_index.ann', 5, 'models/data/')
