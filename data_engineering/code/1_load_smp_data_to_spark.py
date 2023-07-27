@@ -13,7 +13,7 @@ import os
 if __name__ == "__main__":
     spark_conf = SparkConf()
     config_options = configparser.ConfigParser()
-    spark_conf_dir = os.environ.get('SPARK_CONF_DIR')
+    spark_conf_dir = os.environ.get('SPARK_CONF_DIR') or 'conf'
     config_options.read('{}/spark.conf'.format(spark_conf_dir))  # Load entries defined in 'spark-start' shell script
     for k, v in config_options.items("SPARK_APP_CONFIGS"):
         spark_conf.set(k, v)
