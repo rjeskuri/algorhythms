@@ -77,6 +77,9 @@ SPARK_WEBUI_SECRET=$(openssl rand -hex 32)
 touch ${SPARK_CONF_DIR}/spark-defaults.conf ${SPARK_CONF_DIR}/spark-env.sh
 chmod 700 ${SPARK_CONF_DIR}/spark-defaults.conf ${SPARK_CONF_DIR}/spark-env.sh
 
+# Read the path to the metadata store location 'spark_table_warehouse' from the 'virtual_env.sh'
+source ../conf/virtual_env.sh
+
 # Create spark-defaults config file.
 cat > "${SPARK_CONF_DIR}/spark-defaults.conf" <<EOF
 # Enable RPC Authentication
@@ -98,8 +101,12 @@ spark.ui.enabled                   true
 # Disable progress bar in console.
 spark.ui.showConsoleProgress       false
 
-# Custom setup by anilcm : Setup metadata_store to scratch location
-spark.driver.extraJavaOptions      -Dderby.system.home=/scratch/siads699s23_class_root/siads699s23_class/shared_data/team_16_algorhythms/data/spark_table_warehouse
+# Custom setup : point metadata_store to \scratch location
+spark.driver.extraJavaOptions      -Dderby.system.home=${spark_table_warehouse}
+
+# Set max result size to be 16GB to allow for large serialized results to be managed
+spark.driver.maxResultSize 131072m
+spark.driver.memory 16384m
 
 EOF
 
