@@ -19,4 +19,4 @@ source ../conf/virtual_env.sh
 # Update PYTHONPATH to include virtual environment's site-packages so that dependencies are available
 export PYTHONPATH="$venv_path:$PYTHONPATH"
 
-python 6_pytorch_geometric_data_obj_generator.py
+python ../6_pytorch_geometric_data_obj_generator.py
