@@ -135,6 +135,8 @@ if __name__ == "__main__":
         input_nodes=train_mask,  # Apply train_mask created earlier in code
     )
 
+    print("NeighborLoader initialization has completed. Moving onto training...")
+
     # Define the graph convolutional network model based on the 'MessagePassing' class
     class GCN(pyg_nn.MessagePassing):
         def __init__(self, num_features, hidden_size, embedding_size):
