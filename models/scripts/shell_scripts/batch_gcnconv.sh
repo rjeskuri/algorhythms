@@ -13,12 +13,12 @@
 # depending on which cluster you are on.
 module load python/3.10.4 pyarrow/8.0.0
 
-# Change later by importing this from another file
+# CHANGE this to be the virtual environment used / i.e. reference to a config file
 source /home/anilcm/myenv/bin/activate
 
-# Pass the folder name within 'saved_files/data_representations' that the model will read data from
+# Pass the folder name within 'saved_files/data_representations' as 'data_version_input'
 data_version_input="$1"
+num_epochs="$2"
+num_iter_per_epoch="$3"
 
-echo ${SLURM_JOB_ID}
-
-python -u ../graph_network_GCNConv_mse_loss.py "$data_version_input" >> slurm-${SLURM_JOB_ID}.out 2>&1
+python -u ../graph_network_GCNConv_mse_loss.py "$data_version_input" "$num_epochs" "$num_iter_per_epoch" >> slurm-${SLURM_JOB_ID}.out 2>&1

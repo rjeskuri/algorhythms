@@ -1,3 +1,14 @@
+"""
+This script accepts 3 prompts:
+Prompt 1 (required) : Folder name of the data version to gather the pytorch-geometric data object.
+Prompt 2 (optional) : Number of epochs for training. Default is 10.
+Prompt 3 (optional) : Number of iterations inside each epoch. Default is 10.
+
+Examples:
+    a) When running directly as Python script : python graph_network_GCNConv_mse_loss.py version_20230728_060743 12 12
+    b) When running in Slurm using SBATCH     : sbatch batch_gcnconv.sh version_20230728_060743 12 12
+"""
+
 import glob
 import configparser
 import os
@@ -35,6 +46,24 @@ if __name__ == "__main__":
         """.format(dataBaseDirectory))
         sys.exit(1)  # Exit with a non-zero status code to indicate an error
 
+    # Define default number of epochs and number of samples trained per epoch.
+    # Override if provided as arguments to script
+    num_epochs = 10
+    num_train_inside_epoch = 10
+
+    if len(sys.argv) >= 3:
+        try:
+            num_epochs = int(sys.argv[2])  # Use the 2nd argument as num_epochs
+        except:
+            print("Please provide an integer value for 2nd argument , i.e. number of epochs")
+            sys.exit(1)
+    if len(sys.argv) >= 4:
+        try:
+            num_train_inside_epoch = int(sys.argv[3])  # Use the 3rd argument as num_train_inside_epoch
+        except:
+            print("Please provide an integer value for 3rd argument , i.e. number of iterations inside an epoch")
+            sys.exit(1)
+
     # Load 'data' object directly from saved pickle file that was created earlier
     dataVersion = sys.argv[1]
     versionDirectoryName = '{}/{}'.format(dataBaseDirectory + "/saved_files/data_representations", dataVersion)
@@ -50,6 +79,11 @@ if __name__ == "__main__":
         Path to review the contents is : {}.
         """.format(dataBaseDirectory))
         sys.exit(1)  # Exit with a non-zero status code to indicate an error
+
+    # Log out the choices for traceability
+    print("Data file chosen for training : {}".format(matching_file))
+    print("Number of epochs chosen for training : {}".format(num_epochs))
+    print("Data version chosen for training : {}".format(num_train_inside_epoch))
 
     with open(matching_file, 'rb') as file:
         data = pickle.load(file)
@@ -161,12 +195,9 @@ if __name__ == "__main__":
         loss = torch_func.mse_loss(dot_product, edge_weight)
         return loss
 
-
     """
-    Note:
-    dataLoader can generate samples infinitely, hence will use a counter 'idx' against 'num_train_inside_epoch' to break.
+    Note: dataLoader can generate samples infinitely, hence will use a counter 'idx' against 'num_train_inside_epoch' to break.
     """
-
     # Initialize the model
     model = GCN(num_features=data.x.size(1), hidden_size=16, embedding_size=10)
 
@@ -181,16 +212,13 @@ if __name__ == "__main__":
     clip_value = 1.0  # Set the value you want to clip gradients at
     torch.nn.utils.clip_grad_value_(model.parameters(), clip_value)
 
-    # Define number of epochs and number of samples trained per epoch
-    num_epochs = 5
-    num_train_inside_epoch = 10
-
     # Training loop for multiple epochs
     for epoch in range(num_epochs):
         print(f"Epoch {epoch + 1}/{num_epochs}")
         model.train()  # Set to training mode
         # Iterate through the dataLoader and train the model on each sample
         for idx, new_sample in enumerate(dataLoader):
+            print(idx + 1, end="...")
             # If the sample produced has undirected graphs. Transform the sample graph using .to_undirected()
             if not new_sample.is_undirected():
                 new_edge_index, new_edge_weight = pyg_utils.to_undirected(new_sample.edge_index, new_sample.edge_weight)
@@ -207,7 +235,7 @@ if __name__ == "__main__":
             if idx + 1 == num_train_inside_epoch:
                 break
 
-        print("Training Loss after {} epoch/s = {}".format(epoch + 1, loss))
+        print("\nTraining Loss after {} epoch/s = {}".format(epoch + 1, loss))
         # Check against validation dataset here
         model.eval()
         output_validation = model(x=val_data.x
@@ -231,15 +259,6 @@ if __name__ == "__main__":
     timeStamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")  # Use subsequently
     versioning = "v" + dataVersion.split('_', 1)[-1]  # Pull up version of data that model used to help trace the data
 
-    file_path = '{}/model_{}_using_data_{}.pkl'.format(modelDirectoryPath, timeStamp, versioning)
+    file_path = '{}/model_gcnconv_{}_using_data_{}.pkl'.format(modelDirectoryPath, timeStamp, versioning)
+    print("\nSaving model as pickle file : {}".format(file_path))
     torch.save(model.state_dict(), file_path)
-
-    # To Load the trained model state_dict, pass 'file_path' and get it
-    # model.load_state_dict(torch.load(file_path))
-
-
-
-
-
-
-
