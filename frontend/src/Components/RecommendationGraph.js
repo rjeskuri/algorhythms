@@ -4,7 +4,7 @@ import React from "react";
 import { Graph } from "react-d3-graph";
 
 
-const RecommendationGraph = ({ tracks }) => {
+const RecommendationGraph = ({ tracks, setPlaybackSong }) => {
 
     const data = () => {
         if (tracks == null || tracks.length == 0) {
@@ -17,12 +17,13 @@ const RecommendationGraph = ({ tracks }) => {
                     {
                         id: track.track.name,
                         popularity: track.track.popularity,
-                        albumName: track.track.album.name
+                        albumName: track.track.album.name,
+                        songId: track.id
                     }
                 )
             }),
             links: tracks.flatMap((v, i) =>
-                tracks.slice(i + 1).map(w => { return ( {source: v.track.name, target: w.track.name } ) })
+                tracks.slice(i + 1).map(w => { return ( {source: v.track.name, target: w.track.name, weight: Math.floor(Math.random() * 30) } ) })
             )
         }
     };
@@ -42,8 +43,9 @@ const RecommendationGraph = ({ tracks }) => {
         },
     };
 
-    const onClickNode = function(nodeId) {
+    const onClickNode = function(nodeId, node) {
         window.alert(`Clicked node ${nodeId}`);
+        setPlaybackSong(node.songId);
     };
 
     const onClickLink = function(source, target) {

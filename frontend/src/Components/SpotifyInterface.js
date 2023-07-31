@@ -5,7 +5,7 @@ import axios from 'axios';
 import Button from 'react-bootstrap/Button';
 
 
-const SpotifyInterface = ({ activePlaylist, setPlaylists, setTracks }) => {
+const SpotifyInterface = ({ activePlaylist, setPlaylists, setTracks, setSpotifyToken }) => {
     const CLIENT_ID = 'b2363da7847344cfa904d18c67075f76';
     const REDIRECT_URI = 'http://algorhythms-frontend.s3-website-us-east-1.amazonaws.com/';
     const AUTH_ENDPOINT = 'https://accounts.spotify.com/authorize';
@@ -29,6 +29,7 @@ const SpotifyInterface = ({ activePlaylist, setPlaylists, setTracks }) => {
 
     useEffect(() => {
         searchPlaylists();
+        setSpotifyToken(token);
     }, [token]);
 
     useEffect(() => {
@@ -60,7 +61,7 @@ const SpotifyInterface = ({ activePlaylist, setPlaylists, setTracks }) => {
     };
 
     const retrieveActivePlaylist = () => {
-        var queryEndpoint = '';
+        let queryEndpoint = '';
         if (activePlaylist === '') {
             return;
         } else if (activePlaylist === 'liked') {
@@ -74,14 +75,28 @@ const SpotifyInterface = ({ activePlaylist, setPlaylists, setTracks }) => {
                 Authorization: `Bearer ${token}`
             }
         }).then((response) => {
-            setTracks(response.data.items);
+            let playlist = response.data.items.map(track => {
+                return {...track, features: retrieveTrackAudioFeatures(track.id)}
+            });
+
+            setTracks(playlist);
         }).catch((err) => console.log(err));
     };
+
+    const retrieveTrackAudioFeatures = (trackId) => {
+        axios.get(`https://api.spotify.com/v1/audio-features/${trackId}`, {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        }).then((response) => {
+            return response
+        }).catch((err) => console.log(err));
+    }
 
     return (
         <div style={{marginTop: '30px'}}>
             {!token ?
-                <a href={`${AUTH_ENDPOINT}?client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=${RESPONSE_TYPE}&scope=user-library-read`}>Login
+                <a href={`${AUTH_ENDPOINT}?client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=${RESPONSE_TYPE}&scope=user-library-read,streaming,user-read-email,user-read-private,user-read-playback-state,user-modify-playback-state`}>Login
                     to Spotify</a>
                 : <Button variant='secondary' onClick={logout}>Logout</Button>}
         </div>

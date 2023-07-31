@@ -5,7 +5,6 @@ import axios from 'axios';
 
 const AlgoRhythmsInterface = ({ playlistTracks, setRecommendations }) => {
     const ALGORHYTHMS_ASK_ENDPOINT = '';
-    const ALGORHYTHMS_TELL_ENDPOINT = '';    
 
     useEffect(() => {
         askRecommendations();

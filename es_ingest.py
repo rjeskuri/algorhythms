@@ -1,8 +1,10 @@
 
 import argparse
 import os
+import pickle
 
 from elasticsearch import Elasticsearch
+from elasticsearch.helpers import bulk
 import pandas as pd
 
 
@@ -12,10 +14,17 @@ DEFAULT_ELASTICSEARCH_USERNAME = 'user'
 DEFAULT_ELASTICSEARCH_PASSWORD = 'password'
 
 SONG_MAPPING = {
-    'properties': {
-        'song_id': {'type': 'text'},
-        'name': {'type': 'text',}
-        'embedding': {'type': 'double'}
+    'mappings': {
+        'properties': {
+            'song_id': {'type': 'text'},
+            'name': {'type': 'text'},
+            'embedding': {
+                'type': 'dense_vector',
+                'dims': 10,
+                'index': True,
+                'similarity': 'l2_norm'
+            }
+        }
     }
 }
 
@@ -30,48 +39,58 @@ def init_elasticsearch(index, url, username, password):
         verify_certs=False
     )
 
-    resp = es.options(ignore_status=[400]).indices.create(
+    es.indices.delete(index=index, ignore=[400, 404])
+
+    resp = es.indices.create(
         index=index,
-        mapping=SONG_MAPPING
+        ignore=400,
+        body=SONG_MAPPING
     )
     print(resp)
 
     return es
 
 
-def load_song_embeddings(path):
+def load_song_embeddings(index_path, embedding_path):
     """
-    Loads CSV of song embeddings and converts into a list of dictionaries.
+    Loads song embeddings and converts into a list of dictionaries.
     """
-    song_df = pd.read_csv(path)
+    with open(index_path, 'rb') as fp:
+        index = pickle.load(fp)
+    with open(embedding_path, 'rb') as fp:
+        embeddings = pickle.load(fp)
+    embeddings = embeddings.cpu().detach().numpy()
 
     songs = [{
-        'song_id': row['song_id'],
-        'name': row['name'],
-        'embedding': row['embedding']
-    } for _, row in song_df.iterrows()]
+        'song_id': song_id,
+        'embedding': list(embeddings[index])
+    } for song_id, index in index.items()]
+
+    print(songs[:10])
 
     return songs
 
 
-def index_songs(es, index, songs):
+def index_songs(index, songs):
     """
     Inserts songs into elasticsearch index.
     """
     for song in songs:
         song_id = song['song_id']
-        es.index(
-            index=index,
-            document=song,
-            id=song_id
-        )
+        doc = {
+            '_index': index,
+            '_id': song_id,
+            '_source': song
+        }
+        yield doc
 
 
 def main():
     
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('filename', help='path to csv containing songs and embeddings')
+    parser.add_argument('index_filename', help='path to dictionary pkl containing songs ids')
+    parser.add_argument('embedding_filename', help='path to dictionary pkl containing songs embeddings')
     parser.add_argument('--es-url', help='url pointing to elasticsearch', default=DEFAULT_ELASTICSEARCH_URL)
     parser.add_argument('--index', help='name of index to place embeddings into', default=DEFAULT_ELASTICSEARCH_INDEX)
     parser.add_argument('--username', help='elasticsearch credentials', default=DEFAULT_ELASTICSEARCH_USERNAME)
@@ -85,13 +104,12 @@ def main():
         username=args.username,
         password=args.password
     )
-    songs = load_song_embeddings(args.filename)
+    songs = load_song_embeddings(args.index_filename, args.embedding_filename)
 
-    index_songs(
-        es=es,
+    bulk(es, index_songs(
         index=args.index,
         songs=songs
-    )
+    ))
 
 
 if __name__ == '__main__':
