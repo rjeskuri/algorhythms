@@ -104,7 +104,7 @@ def getData(dataBaseDirectory):
         matching_file = glob.glob(search_path)[0]
     except:
         print("""
-        Error: Check if folder you provided as argument exists inside 'saved_folder/data_representations'. 
+        Error: Check if folder you provided as argument exists inside 'saved_folder/data_representations'.
         Path to review the contents is : {}.
         """.format(dataBaseDirectory))
         sys.exit(1)  # Exit with a non-zero status code to indicate an error
@@ -157,7 +157,7 @@ if __name__ == "__main__":
 
     if len(sys.argv) < 2:
         print("""
-        Error: Argument missing of whether this is 'distributedGPU' or 'distributedCPU' or 'non-distributed' mode. 
+        Error: Argument missing of whether this is 'distributedGPU' or 'distributedCPU' or 'non-distributed' mode.
         """)
         sys.exit(1)  # Exit with a non-zero status code to indicate an error
 
@@ -165,7 +165,7 @@ if __name__ == "__main__":
     print("Mode chosen : '{}'".format(mode))
 
     '''
-    # Uncomment once the '../../data_engineering/code/conf' directory is available to access 
+    # Uncomment once the '../../data_engineering/code/conf' directory is available to access
     config_options = configparser.ConfigParser()
     conf_dir = os.environ.get('SPARK_CONF_DIR') or '../../data_engineering/code/conf'  # Options to support Spark CLuster and local modes
     config_options.read('{}/spark.conf'.format(conf_dir))  # Load entries defined in 'spark-start' shell script
@@ -197,13 +197,17 @@ if __name__ == "__main__":
         model = DataParallel(model)  # Set the model to use DataParallel for multi-CPU computation
 
         # Trim down the edge weights to be able to generate embeddings for significant edge weights
+
         if len(sys.argv) > 2:
-            percentile = int(sys.argv[2])
+            try:
+                percentile = float(sys.argv[2])
+            except:
+                print("Error: Invalid percentile value provided. Going for default....")
         else:
             percentile = 0.1
         print("Cut-off percentile for edge weights = {}%. Beginning trimming down edges....".format(percentile*100))
-        data = trimDownEdgesByWeightCutoff(data, percentile=0.1)
-
+        data = trimDownEdgesByWeightCutoff(data, percentile=percentile)
+        print("After trimming off edge weights based on percentile, the number of pairs of edges remaining = {}".format(data.edge_weight.size(0)))
         # Set to non-training mode and generate embeddings
         model.eval()
         embeddings = model(x=data.x, edge_index=data.edge_index)
