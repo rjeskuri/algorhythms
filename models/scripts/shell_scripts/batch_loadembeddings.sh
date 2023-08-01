@@ -15,9 +15,10 @@
 # depending on which cluster you are on.
 module load python/3.10.4 pyarrow/8.0.0 cuda cudnn
 
-# CHANGE this to be the virtual environment used / i.e. reference to a config file
+# CHANGE this to be the virtual environment used
 # source /home/anilcm/myenv/bin/activate
 
 mode="$1"
+percentilecutoff="$2"
 
-python -u ../load_embeddings_from_model.py "$mode" >> slurm-${SLURM_JOB_ID}.out 2>&1
+python -u ../load_embeddings_from_model.py "$mode" "$percentilecutoff" >> slurm-${SLURM_JOB_ID}.out 2>&1

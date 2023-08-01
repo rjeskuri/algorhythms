@@ -1,10 +1,13 @@
 """
 This script is intended to generate embeddings on the entire data object using a model artefact
+Prompt 1 (required) : mode of training, which could be 'distributedGPU', 'distributedCPU' or 'non-distributed'
+Prompt 2 (optional) : Percentile cutoff for edge-weights to generate embeddings. Edge weights above this percentile cutoff will be kept. Default : 0.1
 
 """
 
 import os
 import sys
+import datetime
 import random
 import pickle
 import glob
@@ -122,15 +125,15 @@ def getModel(dataBaseDirectory):
     return model
 
 
-def trimDownEdges(data,fraction=0.6):
-    num_elements = int(fraction * data.edge_weight.size(0)) # Generate number of edge pairs based on fraction choice
-    selected_indices = random.sample(range(data.edge_index.size(1)), num_elements)
-
-    # Use the selected indices to extract the desired elements
-    edge_indices_out = data.edge_index[:, selected_indices]
-    edge_weights_out = data.edge_weight[selected_indices]
-
-    return Data(x=data.x, edge_index=edge_indices_out, edge_weight=edge_indices_out, num_nodes=data.x.size(0))
+def trimDownEdgesByWeightCutoff(data, percentile=0.05):
+    k = int(percentile * data.edge_weight.size(0))
+    cutoff, _ = torch.kthvalue(data.edge_weight, k) # k is the percentile index, if data.edge_weight were to be ordered
+    print("Based on percentile {} provided, cutoff was found to be {}".format(percentile,cutoff))
+    # Generate mask based on cutoff found using the percentile
+    mask = data.edge_weight > cutoff
+    edge_weights_out = data.edge_weight[mask]
+    edge_indices_out = data.edge_index[:, mask]
+    return Data(x=data.x, edge_index=edge_indices_out, edge_weight=edge_weights_out, num_nodes=data.x.size(0))
 
 # Consider to place this into a model library to import when needed
 # Define the graph convolutional network model based on the 'MessagePassing' class
@@ -193,8 +196,13 @@ if __name__ == "__main__":
 
         model = DataParallel(model)  # Set the model to use DataParallel for multi-CPU computation
 
-        # Temporary step to trim down edges to be able to get some embeddings
-        # data = trimDownEdges(data, fraction=0.6)
+        # Trim down the edge weights to be able to generate embeddings for significant edge weights
+        if len(sys.argv) > 2:
+            percentile = int(sys.argv[2])
+        else:
+            percentile = 0.1
+        print("Cut-off percentile for edge weights = {}%. Beginning trimming down edges....".format(percentile*100))
+        data = trimDownEdgesByWeightCutoff(data, percentile=0.1)
 
         # Set to non-training mode and generate embeddings
         model.eval()
@@ -204,7 +212,8 @@ if __name__ == "__main__":
         # Save to disk
         # To-do: Assign version name or other metadata to name of file
         embeddingsDirectoryPath = dataBaseDirectory + "/saved_files/embeddings"
-        embedding_file_name = '{}/{}'.format(embeddingsDirectoryPath, "embedding_file.pkl")
+        timeStamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")  # Use subsequently
+        embedding_file_name = '{}/{}'.format(embeddingsDirectoryPath, "embedding_{}_percentile_{}.pkl".format(percentile*100,timeStamp))
         print("Saving embeddings for data to : {}".format(embedding_file_name))
         with open(embedding_file_name, 'wb') as file:
             pickle.dump(embeddings, file)
