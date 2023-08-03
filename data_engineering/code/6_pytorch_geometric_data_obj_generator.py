@@ -27,6 +27,11 @@ if __name__ == "__main__":
         dataBaseDirectory + "/algorhythms_db.db" + "/track_track_{}_graph_pair_wts_tbl".format(file_choice)))
     print("Number of parquet files for pair-wise relations were found to be : {}".format(len(pair_wts_parquet_files)))
 
+    unique_track_uri_name_and_artists_files = glob.glob(
+        '{}/algorhythms_db.db/unique_track_uri_name_and_artist_tbl/*.parquet'.format(dataBaseDirectory))
+    print("Number of parquet files for distinct tracks with their track name and artist name : {}".format(
+        len(unique_track_uri_name_and_artists_files)))
+
     # Specify the path to the CSV file for Spotify data that contains ALL tracks
     spotifyCsvFile = "{}/{}" \
         .format(dataBaseDirectory, 'spotifyapi_tracks_all.csv')
@@ -64,14 +69,28 @@ if __name__ == "__main__":
         column_data = featureOHEDf[col].values.reshape(-1, 1)  # Reshape the column to a 2D array to fit the scaler
         featureOHEDf[col] = minMaxScaler.fit_transform(column_data)  # Fit and transform the column with Min-Max scaling
     '''
-    featureOHEMinMaxDf = pd.DataFrame(minMaxScaler.fit_transform(featureOHEDf),columns=featureOHEDf.columns)
+    featureOHEMinMaxDf = pd.DataFrame(minMaxScaler.fit_transform(featureOHEDf),columns=featureOHEDf.columns,index=featureOHEDf.index)
 
     # Generate the trackIndexDict that will be used to help create 'edge_index' references
     trackIndexDict = {node: index for index, node in enumerate(featureOHEMinMaxDf.index)}
     trackNodeFeatures = featureOHEMinMaxDf.values
 
+    # Concatenate all the parquet file contents together to form a single pandas dataframe
+    unique_tracks_name_artist_df = pd.concat([pd.read_parquet(file) for file in unique_track_uri_name_and_artists_files]
+                                             , ignore_index=True)
+
+    # To ensure that indexes in 'trackIndexDict' are consistently used to join to create 'indexTrackDict'
+    # ,make a temporary Dataframe that preserves these indexes.This way no unintended effects will be seen with any index resets
+    joinHelperDf = pd.DataFrame(list(trackIndexDict.items()), columns=['track_uri', 'track_index'])
+
+    # Create a dataframe that has all the desired columns, index, track_uri, track_name, artist_name
+    indexTrackDictDf = joinHelperDf.merge(unique_tracks_name_artist_df, on='track_uri', how='inner').set_index(
+        'track_index')
+
     # Reverse the trackIndexDict since during inference we will need index to track lookup
-    indexTrackDict = {index: (node,'track_name') for node, index in trackIndexDict.items()}
+    # Produces a dictionary of index: (track_uri,track_name,artist_name)
+    # Note : The tuple value is actually a numpy.record, but can be called using index like a regular tuple
+    indexTrackDict = dict(zip(indexTrackDictDf.index, indexTrackDictDf.to_records(index=False)))
 
     # Initialize to empty numpy array
     edge_index_src_np = np.empty(0, dtype=int)
@@ -117,7 +136,7 @@ if __name__ == "__main__":
 
     # Save 'data' and 'trackIndexDict' to storage for future use
     file_trackIndexDict = '{}/dict_of_track_to_index_{}.pkl'.format(versionDirectoryPath, timeStamp)
-    file_indexTrackDict = '{}/dict_of_index_to_track_uri_and_name_{}.pkl'.format(versionDirectoryPath, timeStamp)
+    file_indexTrackDict = '{}/dict_of_index_to_track_uri_and_names_{}.pkl'.format(versionDirectoryPath, timeStamp)
     file_data = '{}/data_obj_{}_nodes_{}_edges_{}.pkl'.format(
         versionDirectoryPath, data.num_nodes, data.edge_index.size(1), timeStamp)
     file_node_features = '{}/all_node_features_{}.pkl'.format(versionDirectoryPath, timeStamp)
