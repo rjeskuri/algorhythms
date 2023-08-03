@@ -24,12 +24,15 @@ def main_gpu(rank, world_size):
     # Initialize distributed backend
     print("Rank intialized = {} :".format(rank))
     #dist.init_process_group(backend='nccl', init_method='env://', rank=rank, world_size=world_size)
-    dist.init_process_group(backend='nccl', init_method='tcp://localhost:23456', rank=rank, world_size=world_size)
+    dist.init_process_group(backend='NCCL', rank=rank, world_size=world_size)
 
     # Set the device based on the rank
     device = torch.device("cuda:{}".format(rank))
+    
+    dataBaseDirectory = '/scratch/siads699s23_class_root/siads699s23_class/shared_data/team_16_algorhythms/data/spark_table_warehouse'
 
-    data = getData()
+    data = getData(dataBaseDirectory)
+
     print("Moving 'data' to GPUs.....")
     data = data.to(device)
     print("Completed moving 'data' to GPUs....Moving onto training...")
