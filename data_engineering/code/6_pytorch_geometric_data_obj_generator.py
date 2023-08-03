@@ -58,22 +58,25 @@ if __name__ == "__main__":
 
     # Min-Max scale the entire dataframe
     minMaxScaler = MinMaxScaler()
+
+    '''
     for col in tqdm(featureOHEDf.columns, desc="Min Max scaling across columns..."):
         column_data = featureOHEDf[col].values.reshape(-1, 1)  # Reshape the column to a 2D array to fit the scaler
         featureOHEDf[col] = minMaxScaler.fit_transform(column_data)  # Fit and transform the column with Min-Max scaling
+    '''
+    featureOHEMinMaxDf = pd.DataFrame(minMaxScaler.fit_transform(featureOHEDf),columns=featureOHEDf.columns)
 
     # Generate the trackIndexDict that will be used to help create 'edge_index' references
-    trackIndexDict = {node: index for index, node in enumerate(featureOHEDf.index)}
-    trackNodeFeatures = featureOHEDf.values
+    trackIndexDict = {node: index for index, node in enumerate(featureOHEMinMaxDf.index)}
+    trackNodeFeatures = featureOHEMinMaxDf.values
 
-    # Review one of the files 'pair_wts_parquet_files' , say 35 index
+    # Reverse the trackIndexDict since during inference we will need index to track lookup
+    indexTrackDict = {index: (node,'track_name') for node, index in trackIndexDict.items()}
 
     # Initialize to empty numpy array
     edge_index_src_np = np.empty(0, dtype=int)
     edge_index_dst_np = np.empty(0, dtype=int)
     edge_weights_np = np.empty(0, dtype=int)
-
-    # parquet_files = [pair_wts_parquet_files[35],pair_wts_parquet_files[37]]
 
     for parquet_file in tqdm(pair_wts_parquet_files):
         pairWtsDf = pd.read_parquet(parquet_file)
@@ -87,13 +90,12 @@ if __name__ == "__main__":
     edge_index = torch.tensor(edge_indices_np, dtype=torch.long).contiguous()
     edge_weight = torch.tensor(edge_weights_np, dtype=torch.float)
 
-    # IMPORTANT STEP:
-    # Duplicate the entries in edge_index (reversed) to ensure undirected edges.Also duplicate edge_weight to match the edge_index.
+    # IMPORTANT STEP: Duplicate the entries in edge_index (reversed) to ensure undirected edges.Also duplicate edge_weight to match the edge_index.
     edge_index = torch.cat([edge_index, edge_index.flip(0)], dim=1)
     edge_weight = torch.cat([edge_weight, edge_weight], dim=0)
 
-    # Since featureOHEDf is an ordered DataFrame that was used to generate 'trackIndexDict'
-    # , we can be sure of using featureOHEDf.values as array in same indexed order to define node_features
+    # Since featureOHEMinMaxDf is an ordered DataFrame that was used to generate 'trackIndexDict'
+    # , we can be sure of using featureOHEMinMaxDf.values as array in same indexed order to define node_features
     node_features = torch.tensor(trackNodeFeatures, dtype=torch.float)
 
     # Create the graph data using torch-geometric
@@ -114,14 +116,20 @@ if __name__ == "__main__":
     print("Files from this job will be saved to : {}".format(versionDirectoryPath))
 
     # Save 'data' and 'trackIndexDict' to storage for future use
-    file_trackIndexDict = '{}/dict_of_track_index_location_{}.pkl'.format(versionDirectoryPath, timeStamp)
+    file_trackIndexDict = '{}/dict_of_track_to_index_{}.pkl'.format(versionDirectoryPath, timeStamp)
+    file_indexTrackDict = '{}/dict_of_index_to_track_uri_and_name_{}.pkl'.format(versionDirectoryPath, timeStamp)
     file_data = '{}/data_obj_{}_nodes_{}_edges_{}.pkl'.format(
         versionDirectoryPath, data.num_nodes, data.edge_index.size(1), timeStamp)
+    file_node_features = '{}/all_node_features_{}.pkl'.format(versionDirectoryPath, timeStamp)
 
     with open(file_trackIndexDict, 'wb') as file:
         pickle.dump(trackIndexDict, file)
+    with open(file_indexTrackDict, 'wb') as file:
+        pickle.dump(indexTrackDict, file)
     with open(file_data, 'wb') as file:
         pickle.dump(data, file)
+    with open(file_node_features, 'wb') as file:
+        pickle.dump(node_features, file)
 
     # Save the 'ohe_encoder' and 'minMaxScaler' to a 'joblib' each  file in 'versionDirectoryPath'
     # Load in model evaluation time to be able to use it in evaluation time.
@@ -130,5 +138,3 @@ if __name__ == "__main__":
 
     joblib.dump(ohe_encoder, file_ohe_encoder)
     joblib.dump(minMaxScaler, file_min_max_enc)
-
-
