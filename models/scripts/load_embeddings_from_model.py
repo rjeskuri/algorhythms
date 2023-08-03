@@ -30,7 +30,6 @@ def main_gpu(rank, world_size):
     device = torch.device("cuda:{}".format(rank))
     
     dataBaseDirectory = '/scratch/siads699s23_class_root/siads699s23_class/shared_data/team_16_algorhythms/data/spark_table_warehouse'
-
     data = getData(dataBaseDirectory)
 
     print("Moving 'data' to GPUs.....")
