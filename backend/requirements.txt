@@ -1,2 +1,3 @@
 elasticsearch
 smart_open
+joblib

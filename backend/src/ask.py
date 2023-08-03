@@ -3,26 +3,80 @@ import io
 import os
 from urllib.parse import urlparse
 from http import HTTPStatus
+import json
+import joblib
 
 import boto3
 from elasticsearch import Elasticsearch
 from smart_open import open as smart_open
 #import torch
 import numpy as np
+from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
 
 
 DATABASE_URL = os.environ['DATABASE_URL']
 DATABASE_INDEX = os.environ['DATABASE_INDEX']
+DATABASE_CS_INDEX = os.environ['DATABASE_CS_INDEX']
 DATABASE_USER = os.environ['DATABASE_USER']
 DATABASE_PASS = os.environ['DATABASE_PASS']
 
 MODEL_BUCKET = os.environ['MODEL_BUCKET']
-MODEL_KEY = os.environ['MODEL_KEY']
+OHE_KEY = os.environ['OHE_KEY']
+SCALER_KEY = os.environ['SCALER_KEY']
+WEIGHTS1_KEY = os.environ['WEIGHTS1_KEY']
+WEIGHTS2_KEY = os.environ['WEIGHTS2_KEY']
+BIAS1_KEY = os.environ['BIAS1_KEY']
+BIAS2_KEY = os.environ['BIAS2_KEY']
 
 QUERY_FIELDS = ['count', 'songs']
 
+s3 = boto3.resource('s3')
 
-def knn_search(es, song_id, embedding, n=5):
+
+def load_encoders():
+    s3.Bucket(MODEL_BUCKET).download_file(OHE_KEY, '/tmp/ohe.joblib')
+    s3.Bucket(MODEL_BUCKET).download_file(SCALER_KEY, '/tmp/scaler.joblib')
+    
+    oheObj = joblib.load('/tmp/ohe.joblib')
+    minMaxScalerObj = joblib.load('/tmp/scaler.joblib')
+    
+    return oheObj, minMaxScalerObj
+
+
+def retrieve_model():
+    s3.Bucket(MODEL_BUCKET).download_file(WEIGHTS1_KEY, '/tmp/mlp_weight1.pkl')
+    s3.Bucket(MODEL_BUCKET).download_file(WEIGHTS2_KEY, '/tmp/mlp_weight2.pkl')
+    s3.Bucket(MODEL_BUCKET).download_file(BIAS1_KEY, '/tmp/mlp_bias1.pkl')
+    s3.Bucket(MODEL_BUCKET).download_file(BIAS2_KEY, '/tmp/mlp_bias2.pkl')
+    
+    with open('/tmp/mlp_weight1.pkl', 'rb') as fp:
+        weights1 = pickle.load(fp)
+    with open('/tmp/mlp_weight2.pkl', 'rb') as fp:
+        weights2 = pickle.load(fp)
+    with open('/tmp/mlp_bias1.pkl', 'rb') as fp:
+        bias1 = pickle.load(fp)
+    with open('/tmp/mlp_bias2.pkl', 'rb') as fp:
+        bias2 = pickle.load(fp)
+    
+    weights = [(weights1, bias1), (weights2, bias2)]
+
+    return weights
+
+
+def feed_forward(input_, model):
+    input_ = np.array(input_).reshape((1,29))
+    (weights_1, bias_1), (weights_2, bias_2) = model
+
+    layer1 = np.matmul(input_, weights_1.T)
+    layer1 = layer1 + bias_1
+    layer1 = np.vectorize(lambda value: max(0, value))(layer1)
+    layer2 = np.matmul(layer1, weights_2.T)
+    layer2 = layer2 + bias_2
+
+    return layer2
+
+
+def knn_search(es, song_id, embedding, n=5, cs=False):
     query = {
         'field': 'embedding',
         'query_vector': embedding,
@@ -30,7 +84,7 @@ def knn_search(es, song_id, embedding, n=5):
         'num_candidates': 1000
     }
     resp = es.knn_search(
-        index=DATABASE_INDEX,
+        index=DATABASE_INDEX if cs else DATABASE_CS_INDEX,
         knn=query
     )
 
@@ -76,7 +130,7 @@ def calculate_recommendations(count, per_song_recommendations):
 
     # Sort all recommended songs to select only 'count' highest scores
     # Normalize all scores so that lowest (highest) score is 1
-    recommendations = [song for song in sorted(inverted_recommendations.values(), key=lambda song: song['score'])][:count]
+    recommendations = [song for song in sorted(inverted_recommendations.values(), key=lambda song: song['score'], reverse=True)][:count]
     recommendations = {song['id']: {
         **song,
         'score': song['score']
@@ -86,48 +140,63 @@ def calculate_recommendations(count, per_song_recommendations):
 
 
 def lambda_handler(event, context):
-    
+
+    body = json.loads(event['body'])
+
     # Initial validation on shape of event
     # Make sure all query fields are present
     for field in QUERY_FIELDS:
-        if field not in event:
+        if field not in body:
             return {'statusCode': HTTPStatus.BAD_REQUEST.value}
     
-    song_count = event['count']
+    song_count = body['count']
 
     es = Elasticsearch(
         DATABASE_URL,
         http_auth=(DATABASE_USER, DATABASE_PASS)
     )
 
-    """
-    # Load torch model from s3
-    load_path = f's3://{MODEL_BUCKET}/{MODEL_KEY}'
-    with smart_open(load_path, 'rb') as f:
-        buffer = io.BytesIO(f.read())
-        model.load_state_dict(torch.load(buffer))
-    """
+    oheObj, minMaxScalerObj = load_encoders()
 
+    ff_model = retrieve_model()
     song_embeddings = dict()
 
     # Check which songs already exist in elasticsearch, if not compute new embedding
-    for song in event['songs']:
+    for song in body['songs']:
         song_id = song['id']
         resp = es.get(index=DATABASE_INDEX, id=song_id)
         if resp['found']:
             song_embeddings[song_id] = resp['_source']['embedding']
         else:
-            song_embeddings[song_id] = model.predict(song['fields'])
-    
+            raw_features = song['features']
+            raw_features = oheObj.transform([raw_features])
+            raw_features = minMaxScalerObj.transform([raw_features])
+            song_embeddings[song_id] = feed_forward(raw_features, ff_model)
+
     # Do knn search on elasticsearch for each song embedding
     per_song_recommendations = dict()
     for song_id in song_embeddings:
-        per_song_recommendations[song_id] = knn_search(es, song_id, song_embeddings[song_id], n=song_count)
+        cs = len(song_embeddings[song_id]) == 29    # Must use cosine similarity for cold start against songs without an existing embedding
+        per_song_recommendations[song_id] = knn_search(es, song_id, song_embeddings[song_id], n=song_count, cs=cs)
 
     # Merge per song recommendations into a list of 'song_count' length that contains score per original input song
     recommendations = calculate_recommendations(song_count, per_song_recommendations)
 
+    edges = []
+    for recommended_song in recommendations:
+        for source_song_id, source_song in recommendations[recommended_song]['sources'].items():
+            edges.append({
+                'source': source_song_id,
+                'target': recommended_song,
+                'weight': source_song['score']
+            })
+    graph_model = {
+        'source_nodes': body['songs'],
+        'recommendation_nodes': [{'id': rec['id'], 'score': rec['score']} for rec in recommendations.values()],
+        'edges': edges
+    }
+
     return {
         'statusCode': HTTPStatus.OK.value,
-        'body': recommendations
+        'body': json.dumps(graph_model)
     }

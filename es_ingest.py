@@ -20,9 +20,9 @@ SONG_MAPPING = {
             'name': {'type': 'text'},
             'embedding': {
                 'type': 'dense_vector',
-                'dims': 10,
+                'dims': 29,
                 'index': True,
-                'similarity': 'l2_norm'
+                'similarity': 'cosine'
             }
         }
     }
