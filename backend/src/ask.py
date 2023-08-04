@@ -5,11 +5,11 @@ from urllib.parse import urlparse
 from http import HTTPStatus
 import json
 import joblib
+import pickle
 
 import boto3
 from elasticsearch import Elasticsearch
 from smart_open import open as smart_open
-#import torch
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
 
@@ -76,7 +76,7 @@ def feed_forward(input_, model):
     return layer2
 
 
-def knn_search(es, song_id, embedding, n=5, cs=False):
+def knn_search(es, song_id, embedding, n=5):
     query = {
         'field': 'embedding',
         'query_vector': embedding,
@@ -84,7 +84,7 @@ def knn_search(es, song_id, embedding, n=5, cs=False):
         'num_candidates': 1000
     }
     resp = es.knn_search(
-        index=DATABASE_INDEX if cs else DATABASE_CS_INDEX,
+        index=DATABASE_INDEX,
         knn=query
     )
 
@@ -164,10 +164,10 @@ def lambda_handler(event, context):
     # Check which songs already exist in elasticsearch, if not compute new embedding
     for song in body['songs']:
         song_id = song['id']
-        resp = es.get(index=DATABASE_INDEX, id=song_id)
-        if resp['found']:
+        try:
+            resp = es.get(index=DATABASE_INDEX, id=song_id)
             song_embeddings[song_id] = resp['_source']['embedding']
-        else:
+        except:
             raw_features = song['features']
             raw_features = oheObj.transform([raw_features])
             raw_features = minMaxScalerObj.transform([raw_features])
@@ -176,8 +176,7 @@ def lambda_handler(event, context):
     # Do knn search on elasticsearch for each song embedding
     per_song_recommendations = dict()
     for song_id in song_embeddings:
-        cs = len(song_embeddings[song_id]) == 29    # Must use cosine similarity for cold start against songs without an existing embedding
-        per_song_recommendations[song_id] = knn_search(es, song_id, song_embeddings[song_id], n=song_count, cs=cs)
+        per_song_recommendations[song_id] = knn_search(es, song_id, song_embeddings[song_id], n=song_count)
 
     # Merge per song recommendations into a list of 'song_count' length that contains score per original input song
     recommendations = calculate_recommendations(song_count, per_song_recommendations)
