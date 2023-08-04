@@ -19,6 +19,8 @@ module load python/3.10.4 pyarrow/8.0.0 cuda cudnn
 # source /home/anilcm/myenv/bin/activate
 
 mode="$1"
-percentilecutoff="$2"
+modelchoice="$2"
+dataversion="$3"
+percentilecutoff="$4"
 
-python -u ../load_embeddings_from_model.py "$mode" "$percentilecutoff" >> slurm-${SLURM_JOB_ID}.out 2>&1
+python -u ../load_embeddings_from_model.py "$mode" "$modelchoice" "$dataversion" "$percentilecutoff" >> slurm-${SLURM_JOB_ID}.out 2>&1

@@ -1,7 +1,9 @@
 """
 This script is intended to generate embeddings on the entire data object using a model artefact
 Prompt 1 (required) : mode of training, which could be 'distributedGPU', 'distributedCPU' or 'non-distributed'
-Prompt 2 (optional) : Percentile cutoff for edge-weights to generate embeddings. Edge weights above this percentile cutoff will be kept. Default : 0.1
+Prompt 2 (required) : Name of model*.pkl file, from '/saved_files/model_artefacts' to use for training.
+Prompt 3 (required) : Name of 'version' folder, from '/saved_files/data_representations' to use for training.
+Prompt 4 (optional) : Percentile cutoff for edge-weights to generate embeddings. Edge weights above this percentile cutoff will be kept. Default : 0.1
 
 """
 
@@ -28,16 +30,18 @@ def main_gpu(rank, world_size):
 
     # Set the device based on the rank
     device = torch.device("cuda:{}".format(rank))
-    
+
     dataBaseDirectory = '/scratch/siads699s23_class_root/siads699s23_class/shared_data/team_16_algorhythms/data/spark_table_warehouse'
-    data = getData(dataBaseDirectory)
+    dataVersion = sys.argv[3]
+    data = getData(dataBaseDirectory,dataVersion)
 
     print("Moving 'data' to GPUs.....")
     data = data.to(device)
     print("Completed moving 'data' to GPUs....Moving onto training...")
 
     # Gather model and set to eval mode
-    model = getModel()
+    modelChoice = sys.argv[2]
+    model = getModel(dataBaseDirectory,modelChoice)
     model.eval()
     # Perform the forward pass on each GPU
     with torch.no_grad():
@@ -52,8 +56,15 @@ def main_gpu(rank, world_size):
     if rank == 0:
         embeddings = torch.cat(all_outputs, dim=0)
         # Save the complete output to disk
-        embeddingsDirectoryPath = dataBaseDirectory + "/saved_files/embeddings"
-        embedding_file_name = '{}/{}'.format(embeddingsDirectoryPath, "embedding_file.pkl")
+        embeddingsDirectoryPath = os.path.join(dataBaseDirectory, "saved_files", "embeddings")
+        folderWithinEmbeddings = modelChoice.split('.')[0]
+        fullWritePath = os.path.join(embeddingsDirectoryPath, folderWithinEmbeddings)
+        # Check if the directory exists. If not, create it.
+        if not os.path.exists(fullWritePath):
+            os.makedirs(fullWritePath)
+            print(f"Directory '{fullWritePath}' created successfully.")
+        timeStamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")  # Use subsequently
+        embedding_file_name = '{}/{}'.format(fullWritePath, "embedding_{}_percentile_{}.pkl".format(percentile*100,timeStamp))
         print("Saving embeddings for data to : {}".format(embedding_file_name))
         with open(embedding_file_name, 'wb') as file:
             pickle.dump(embeddings, file)
@@ -69,15 +80,16 @@ def main_cpu(rank, world_size):
     dist.init_process_group(backend='gloo', init_method=address, rank=rank, world_size=world_size)
 
     dataBaseDirectory = '/scratch/siads699s23_class_root/siads699s23_class/shared_data/team_16_algorhythms/data/spark_table_warehouse'
-
-    data = getData(dataBaseDirectory)
+    dataVersion = sys.argv[3]
+    data = getData(dataBaseDirectory,dataVersion)
     print("Moving 'data' to CPUs.....")
     # Move the 'data' to the current rank's CPU
     data = data.to(rank)
     print("Completed moving 'data' to CPU....")
 
     # Gather model and set to eval mode
-    model = getModel(dataBaseDirectory)
+    modelChoice = sys.argv[2]
+    model = getModel(dataBaseDirectory,modelChoice)
     model = model.to(rank)
     model = DDP(model, device_ids=[rank])  # Wrap the model with DDP for distributed data parallel
 
@@ -87,16 +99,21 @@ def main_cpu(rank, world_size):
     print("The embeddings have the following shape: \n{}".format(embeddings.shape))
 
     # Save to disk
-    # To-do: Assign version name or other metadata to the name of the file
-    embeddingsDirectoryPath = dataBaseDirectory + "/saved_files/embeddings"
-    embedding_file_name = '{}/{}'.format(embeddingsDirectoryPath, "embedding_file.pkl")
+    embeddingsDirectoryPath = os.path.join(dataBaseDirectory, "saved_files", "embeddings")
+    folderWithinEmbeddings = modelChoice.split('.')[0]
+    fullWritePath = os.path.join(embeddingsDirectoryPath, folderWithinEmbeddings)
+    # Check if the directory exists. If not, create it.
+    if not os.path.exists(fullWritePath):
+        os.makedirs(fullWritePath)
+        print(f"Directory '{fullWritePath}' created successfully.")
+    timeStamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")  # Use subsequently
+    embedding_file_name = '{}/{}'.format(fullWritePath, "embedding_{}_percentile_{}.pkl".format(percentile*100,timeStamp))
     print("Saving embeddings for data to : {}".format(embedding_file_name))
     with open(embedding_file_name, 'wb') as file:
         pickle.dump(embeddings, file)
 
-def getData(dataBaseDirectory):
+def getData(dataBaseDirectory,dataVersion):
     # Load 'data' object directly from saved pickle file that was created earlier
-    dataVersion = 'version_20230728_060743'
     versionDirectoryName = '{}/{}'.format(dataBaseDirectory + "/saved_files/data_representations", dataVersion)
 
     # Pick out the 1st from the list (assume there is only 1 in each version directory as per design)
@@ -117,8 +134,7 @@ def getData(dataBaseDirectory):
     return data
 
 
-def getModel(dataBaseDirectory):
-    modelChoice = 'model_gcnconv_20230728_194226_using_data_v20230728_060743.pkl'
+def getModel(dataBaseDirectory,modelChoice):
     modelDirectoryPath = dataBaseDirectory + "/saved_files/model_artefacts"
     file_path = '{}/{}'.format(modelDirectoryPath, modelChoice)
 
@@ -157,13 +173,19 @@ class GCN(pyg_nn.MessagePassing):
 
 if __name__ == "__main__":
 
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 4:
         print("""
-        Error: Argument missing of whether this is 'distributedGPU' or 'distributedCPU' or 'non-distributed' mode.
+        Total of 3 arguments are required:
+        Argument 1 : Mode of training. Choice of 'distributedGPU' or 'distributedCPU' or 'non-distributed' mode.
+        Argument 2 : Name of the model pickle file as seen in '/saved_files/model_artefacts'
+        Argument 3 : Name of the version folder of the data to use as seen in '/saved_files/data_representations'
+        Please retry again and make sure to pass atleast these 3 arguments.
         """)
         sys.exit(1)  # Exit with a non-zero status code to indicate an error
 
     mode = sys.argv[1]
+    modelChoice = sys.argv[2]
+    dataVersion = sys.argv[3]
     print("Mode chosen : '{}'".format(mode))
 
     '''
@@ -188,8 +210,8 @@ if __name__ == "__main__":
         # Use torch.multiprocessing.spawn to launch a separate process for each CPU
         mp.spawn(main_cpu, args=(world_size,), nprocs=world_size)
     elif mode == 'non-distributed':
-        data = getData(dataBaseDirectory)
-        model = getModel(dataBaseDirectory)
+        data = getData(dataBaseDirectory,dataVersion)
+        model = getModel(dataBaseDirectory,modelChoice)
 
         # Move the model and data to the GPU,if applicable
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -200,11 +222,12 @@ if __name__ == "__main__":
 
         # Trim down the edge weights to be able to generate embeddings for significant edge weights
 
-        if len(sys.argv) > 2:
+        if len(sys.argv) > 4:
             try:
-                percentile = float(sys.argv[2])
+                percentile = float(sys.argv[4])
             except:
                 print("Error: Invalid percentile value provided. Going for default....")
+                percentile = 0.1 # Setting the default
         else:
             percentile = 0.1
         print("Cut-off percentile for edge weights = {}%. Beginning trimming down edges....".format(percentile*100))
@@ -216,10 +239,15 @@ if __name__ == "__main__":
         print("The embeddings have the following shape: \n{}".format(embeddings.shape))
 
         # Save to disk
-        # To-do: Assign version name or other metadata to name of file
-        embeddingsDirectoryPath = dataBaseDirectory + "/saved_files/embeddings"
+        embeddingsDirectoryPath = os.path.join(dataBaseDirectory, "saved_files", "embeddings")
+        folderWithinEmbeddings = modelChoice.split('.')[0]
+        fullWritePath = os.path.join(embeddingsDirectoryPath, folderWithinEmbeddings)
+        # Check if the directory exists. If not, create it.
+        if not os.path.exists(fullWritePath):
+            os.makedirs(fullWritePath)
+            print(f"Directory '{fullWritePath}' created successfully.")
         timeStamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")  # Use subsequently
-        embedding_file_name = '{}/{}'.format(embeddingsDirectoryPath, "embedding_{}_percentile_{}.pkl".format(percentile*100,timeStamp))
+        embedding_file_name = '{}/{}'.format(fullWritePath, "embedding_{}_percentile_{}.pkl".format(percentile*100,timeStamp))
         print("Saving embeddings for data to : {}".format(embedding_file_name))
         with open(embedding_file_name, 'wb') as file:
             pickle.dump(embeddings, file)
