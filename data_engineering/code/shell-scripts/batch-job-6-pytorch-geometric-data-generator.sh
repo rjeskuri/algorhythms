@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=pytorch-geometric-data-gen
 #SBATCH --account=siads699s23_class        # change to your account
-#SBATCH --partition=largemem
+#SBATCH --partition=standard
 #SBATCH --nodes=1                # node count, change as needed
 #SBATCH --ntasks-per-node=1      # do not change, leave as 1 task per node
-#SBATCH --cpus-per-task=1       # cpu-cores per task, change as needed
-#SBATCH --mem=1000g               # memory per node, change as needed
+#SBATCH --cpus-per-task=8       # cpu-cores per task, change as needed
+#SBATCH --mem=180g               # memory per node, change as needed
 #SBATCH --time=05:00:00
 #SBATCH --mail-type=NONE
 
