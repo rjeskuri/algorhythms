@@ -3,6 +3,7 @@ This script accepts 3 prompts:
 Prompt 1 (required) : Folder name of the data version to gather the pytorch-geometric data object.
 Prompt 2 (optional) : Number of epochs for training. Default is 10.
 Prompt 3 (optional) : Number of iterations inside each epoch. Default is 10.
+Prompt 4 (optional) : Number of hidden layers in convolutional layers. Default is 16
 
 Examples:
     a) When running directly as Python script : python graph_network_GCNConv_mse_loss.py version_20230728_060743 12 12
@@ -46,10 +47,11 @@ if __name__ == "__main__":
         """.format(dataBaseDirectory))
         sys.exit(1)  # Exit with a non-zero status code to indicate an error
 
-    # Define default number of epochs and number of samples trained per epoch.
+    # Define default values
     # Override if provided as arguments to script
     num_epochs = 10
     num_train_inside_epoch = 10
+    hiddensz = 16
 
     if len(sys.argv) >= 3:
         try:
@@ -62,6 +64,13 @@ if __name__ == "__main__":
             num_train_inside_epoch = int(sys.argv[3])  # Use the 3rd argument as num_train_inside_epoch
         except:
             print("Please provide an integer value for 3rd argument , i.e. number of iterations inside an epoch")
+            sys.exit(1)
+
+    if len(sys.argv) >= 5:
+        try:
+            hiddensz = int(sys.argv[4])  # Use the 4th argument as hiddensz
+        except:
+            print("Please provide an integer value for 4th argument , i.e. number of hidden layers in GCNConv")
             sys.exit(1)
 
     # Load 'data' object directly from saved pickle file that was created earlier
@@ -84,6 +93,7 @@ if __name__ == "__main__":
     print("Data file chosen for training : {}".format(matching_file))
     print("Number of epochs chosen for training : {}".format(num_epochs))
     print("Data version chosen for training : {}".format(num_train_inside_epoch))
+    print("Number of hidden layers chosen for GCNConv : {}".format(hiddensz))
 
     with open(matching_file, 'rb') as file:
         data = pickle.load(file)
@@ -199,7 +209,7 @@ if __name__ == "__main__":
     Note: dataLoader can generate samples infinitely, hence will use a counter 'idx' against 'num_train_inside_epoch' to break.
     """
     # Initialize the model
-    model = GCN(num_features=data.x.size(1), hidden_size=16, embedding_size=10)
+    model = GCN(num_features=data.x.size(1), hidden_size=hiddensz, embedding_size=10)
 
     # Move over to GPU if environment supports it
     if torch.cuda.is_available():

@@ -20,5 +20,6 @@ source /home/anilcm/myenv/bin/activate
 data_version_input="$1"
 num_epochs="$2"
 num_iter_per_epoch="$3"
+hidden_size="$4"
 
-python -u ../graph_network_GCNConv_mse_loss.py "$data_version_input" "$num_epochs" "$num_iter_per_epoch" >> slurm-${SLURM_JOB_ID}.out 2>&1
+python -u ../graph_network_GCNConv_mse_loss.py "$data_version_input" "$num_epochs" "$num_iter_per_epoch" "$hidden_size" >> slurm-${SLURM_JOB_ID}.out 2>&1
