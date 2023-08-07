@@ -95,11 +95,7 @@ if __name__ == "__main__":
     config_options.read('{}/spark.conf'.format(conf_dir))  # Load entries defined in 'spark-start' shell script
     csvReadDirectory = dict(config_options.items("SPARK_APP_CONFIGS")).get('spark.sql.warehouse.dir')
 
-    #  Sample a few tracks to be able to send up to the 'several tracks' API
-    #  sample_values = playlistDf.select('track_uri').sample(False, 0.1).limit(1010).collect()
-    #  track_uri_list = [row['track_uri'] for row in sample_values]
-
-    # From command-line, provide user ability to specify 'all', 'train' or any other folder that is format 'unique_<argument>_tracks_data'
+    # User can specify 'all', 'train' or any other folder that is format 'unique_<argument>_tracks_data'
     if len(sys.argv) > 1:
         file_choice = sys.argv[1] # Get the file_choice value from the command-line argument
     else:
@@ -125,26 +121,6 @@ if __name__ == "__main__":
 
     track_uri_list = queryRangeDf['track_uri'].values  # Get track_uri in form of list
     print("Number of tracks to query (in batches of 100) = {}".format(len(track_uri_list)))
-
-    '''
-    # Define the schema for the JSON fields in Spark
-    tracksSchema = StructType([
-        StructField("track_uri", StringType(), nullable=False),
-        StructField("danceability", DoubleType(), nullable=True),
-        StructField("energy", DoubleType(), nullable=True),
-        StructField("key", IntegerType(), nullable=True),
-        StructField("loudness", DoubleType(), nullable=True),
-        StructField("mode", IntegerType(), nullable=True),
-        StructField("speechiness", DoubleType(), nullable=True),
-        StructField("acousticness", DoubleType(), nullable=True),
-        StructField("instrumentalness", DoubleType(), nullable=True),
-        StructField("liveness", DoubleType(), nullable=True),
-        StructField("valence", DoubleType(), nullable=True),
-        StructField("tempo", DoubleType(), nullable=True),
-        StructField("duration_ms", DoubleType(), nullable=True),
-        StructField("time_signature", IntegerType(), nullable=True)
-    ])
-    '''
 
     # Define the data types for each column in Pandas
     tracksSchema = {

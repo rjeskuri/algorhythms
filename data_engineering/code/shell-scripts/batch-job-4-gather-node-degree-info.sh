@@ -22,8 +22,8 @@ source ${HOME}/.spark-local/${SLURM_JOB_ID}/spark/conf/spark-env.sh
 # Customize the executor resources below to match resources requested above
 # with an allowance for spark driver overhead. Also change the path to your spark job.
 spark-submit --master ${SPARK_MASTER_URL} \
-  --executor-cores 1 \
+  --executor-cores 4 \
   --executor-memory 5G \
   --total-executor-cores 70 \
   --py-files /home/anilcm/capstone_project/algorhythms/data_engineering/code/dependencies.zip \
-  ../4_load_existing_tables.py
+  ../4_gather_node_degree_information.py
