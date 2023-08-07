@@ -17,12 +17,14 @@ SONG_MAPPING = {
     'mappings': {
         'properties': {
             'song_id': {'type': 'text'},
-            'name': {'type': 'text'},
+            'track_uri': {'type': 'text'},
+            'track_name': {'type': 'text'},
+            'track_artist': {'type': 'text'},
             'embedding': {
                 'type': 'dense_vector',
-                'dims': 29,
+                'dims': 10,
                 'index': True,
-                'similarity': 'cosine'
+                'similarity': 'l2_norm'
             }
         }
     }
@@ -51,22 +53,25 @@ def init_elasticsearch(index, url, username, password):
     return es
 
 
-def load_song_embeddings(index_path, embedding_path):
+def load_song_embeddings(index_path, name_path, embedding_path):
     """
     Loads song embeddings and converts into a list of dictionaries.
     """
     with open(index_path, 'rb') as fp:
         index = pickle.load(fp)
+    with open(name_path, 'rb') as fp:
+        names = pickle.load(fp)
     with open(embedding_path, 'rb') as fp:
         embeddings = pickle.load(fp)
     embeddings = embeddings.cpu().detach().numpy()
 
     songs = [{
         'song_id': song_id,
+        'track_uri': names[index][0],
+        'track_name': names[index][1],
+        'track_artist': names[index][2],
         'embedding': list(embeddings[index])
     } for song_id, index in index.items()]
-
-    print(songs[:10])
 
     return songs
 
@@ -90,6 +95,7 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('index_filename', help='path to dictionary pkl containing songs ids')
+    parser.add_argument('names_filename', help='path to pickle object containing song names')
     parser.add_argument('embedding_filename', help='path to dictionary pkl containing songs embeddings')
     parser.add_argument('--es-url', help='url pointing to elasticsearch', default=DEFAULT_ELASTICSEARCH_URL)
     parser.add_argument('--index', help='name of index to place embeddings into', default=DEFAULT_ELASTICSEARCH_INDEX)
@@ -104,7 +110,7 @@ def main():
         username=args.username,
         password=args.password
     )
-    songs = load_song_embeddings(args.index_filename, args.embedding_filename)
+    songs = load_song_embeddings(args.index_filename, args.names_filename, args.embedding_filename)
 
     bulk(es, index_songs(
         index=args.index,

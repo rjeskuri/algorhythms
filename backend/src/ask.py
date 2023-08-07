@@ -73,10 +73,28 @@ def feed_forward(input_, model):
     layer2 = np.matmul(layer1, weights_2.T)
     layer2 = layer2 + bias_2
 
-    return layer2
+    return layer2.tolist()[0]
 
 
-def knn_search(es, song_id, embedding, n=5):
+def transform_features(features, encoder, scaler):
+
+    non_ohe_columns = ['danceability', 'energy', 'loudness', 'speechiness', 'acousticness',
+                    'instrumentalness', 'liveness',
+                    'valence', 'tempo', 'duration_ms']
+    ohe_columns = ['key', 'mode', 'time_signature']
+
+    
+    non_ohe_values = [features[key] for key in non_ohe_columns]
+    ohe_values = [features[key] for key in ohe_columns]
+
+    ohe_data = list(non_ohe_values) + list(encoder.transform([ohe_values])[0])
+
+    ohe_minmax = scaler.transform([ohe_data])
+
+    return list(ohe_minmax.tolist()[0])
+
+
+def knn_search(es, embedding, n=5, existing_songs=set()):
     query = {
         'field': 'embedding',
         'query_vector': embedding,
@@ -90,9 +108,11 @@ def knn_search(es, song_id, embedding, n=5):
 
     close_songs = [{
         'score': hit['_score'],
-        'song': hit['_source'],
+        'track_uri': hit['_source']['track_uri'],
+        'track_name': hit['_source']['track_name'],
+        'track_artist': hit['_source']['track_artist'],
         'id': hit['_id']
-    } for hit in resp['hits']['hits'] if hit['_id'] != song_id]
+    } for hit in resp['hits']['hits'] if hit['_id'] not in existing_songs]
 
     return close_songs
 
@@ -108,13 +128,16 @@ def calculate_recommendations(count, per_song_recommendations):
             if id_ not in inverted_recommendations:
                 inverted_recommendations[id_] = {
                     'id': id_,
-                    'name': 'test_name',
+                    'track_name': recommended_song['track_name'],
+                    'track_artist': recommended_song['track_artist'],
                     'sources': dict()
                 }
             inverted_recommendations[id_]['sources'][source_song_id] = {
                 'score': score,
                 'id': source_song_id
             }
+    
+    print(inverted_recommendations)
 
     # Compute overall recommendation score for each recommended song
     # Recommendation score = average per song recommendation score / log(1 + count of songs which recommended this song)
@@ -127,6 +150,8 @@ def calculate_recommendations(count, per_song_recommendations):
                 **single_song_recommendation,
                 'score': single_song_recommendation['score'] * recommendation_weight
             }
+    
+    print(inverted_recommendations)
 
     # Sort all recommended songs to select only 'count' highest scores
     # Normalize all scores so that lowest (highest) score is 1
@@ -135,6 +160,8 @@ def calculate_recommendations(count, per_song_recommendations):
         **song,
         'score': song['score']
     } for song in recommendations}
+
+    print(recommendations)
 
     return recommendations
 
@@ -168,15 +195,15 @@ def lambda_handler(event, context):
             resp = es.get(index=DATABASE_INDEX, id=song_id)
             song_embeddings[song_id] = resp['_source']['embedding']
         except:
-            raw_features = song['features']
-            raw_features = oheObj.transform([raw_features])
-            raw_features = minMaxScalerObj.transform([raw_features])
-            song_embeddings[song_id] = feed_forward(raw_features, ff_model)
+            song_embeddings[song_id] = feed_forward(transform_features(song['features'], oheObj, minMaxScalerObj), ff_model)
+
+    playlist_length = len(body['songs'])
+    playlist_songs = {song['id'] for song in body['songs']}
 
     # Do knn search on elasticsearch for each song embedding
     per_song_recommendations = dict()
     for song_id in song_embeddings:
-        per_song_recommendations[song_id] = knn_search(es, song_id, song_embeddings[song_id], n=song_count)
+        per_song_recommendations[song_id] = knn_search(es, song_embeddings[song_id], n=playlist_length, existing_songs=playlist_songs)
 
     # Merge per song recommendations into a list of 'song_count' length that contains score per original input song
     recommendations = calculate_recommendations(song_count, per_song_recommendations)
@@ -191,7 +218,7 @@ def lambda_handler(event, context):
             })
     graph_model = {
         'source_nodes': body['songs'],
-        'recommendation_nodes': [{'id': rec['id'], 'score': rec['score']} for rec in recommendations.values()],
+        'recommendation_nodes': [{'id': rec['id'], 'score': rec['score'], 'track_name': rec['track_name'], 'track_artist': rec['track_artist']} for rec in recommendations.values()],
         'edges': edges
     }
 
