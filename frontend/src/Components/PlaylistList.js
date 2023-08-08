@@ -14,7 +14,7 @@ const PlaylistList = ({ playlists, setActivePlaylist }) => {
     }
 
     return (
-        <div style={{marginTop: '30px', paddingRight: '30px', paddingLeft: '30px'}}>
+        <div style={{height: '100%', marginTop: '30px', paddingRight: '30px', paddingLeft: '30px', overflowY: 'scroll'}}>
             <ListGroup variant='flush'>
                 {items()}
             </ListGroup>
