@@ -4,18 +4,15 @@ import torch.nn.functional as F
 from torch_geometric.nn import GraphConv
 import torch.optim as optim
 
-# Load tensors
-features = torch.load("models/data/features.pt")
-edge_index = torch.load("models/data/edge_index.pt")
-edge_weight = torch.load("models/data/edge_weight.pt")
+
 data = torch.load("models/data/data.pt")
 
 # Define graph network
 class Net(torch.nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.conv1 = GraphConv(13, 24)
-        self.conv2 = GraphConv(24, 8)
+        self.conv1 = GraphConv(29, 64)
+        self.conv2 = GraphConv(64, 8)
 
     def forward(self, data):
         x, edge_index, edge_weight = data.x, data.edge_index, data.edge_attr

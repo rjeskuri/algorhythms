@@ -4,12 +4,14 @@ import json
 import torch
 from torch_geometric.data import Data
 
+#data path
+feature_path = 'train_spotifyapi_100k_sample_20230714_042509/part-00000-43d58907-2d4d-4e73-bb70-0f2dec6d74af-c000.csv'
+rel_path = 'train_graph_node_reltns_100k_sample_20230714_042509/part-00000-483c9c03-4fa3-4513-8df2-e3332e1d234a-c000.csv'
 # Load the data
-feature_df = pd.read_csv('train_spotifyapi_100k_sample_20230714_042509/part-00000-43d58907-2d4d-4e73-bb70-0f2dec6d74af-c000.csv')
+feature_df = pd.read_csv(feature_path)
 feature_df.dropna(inplace=True)
 
-csvPath = "train_graph_node_reltns_100k_sample_20230714_042509/part-00000-483c9c03-4fa3-4513-8df2-e3332e1d234a-c000.csv"
-with open(csvPath, 'r') as file:
+with open(rel_path, 'r') as file:
     lines = file.readlines()
 
 # Now read in the lines to a DataFrame as plain lines
