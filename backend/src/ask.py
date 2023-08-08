@@ -136,8 +136,6 @@ def calculate_recommendations(count, per_song_recommendations):
                 'score': score,
                 'id': source_song_id
             }
-    
-    print(inverted_recommendations)
 
     # Compute overall recommendation score for each recommended song
     # Recommendation score = average per song recommendation score / log(1 + count of songs which recommended this song)
@@ -150,8 +148,6 @@ def calculate_recommendations(count, per_song_recommendations):
                 **single_song_recommendation,
                 'score': single_song_recommendation['score'] * recommendation_weight
             }
-    
-    print(inverted_recommendations)
 
     # Sort all recommended songs to select only 'count' highest scores
     # Normalize all scores so that lowest (highest) score is 1
@@ -160,8 +156,6 @@ def calculate_recommendations(count, per_song_recommendations):
         **song,
         'score': song['score']
     } for song in recommendations}
-
-    print(recommendations)
 
     return recommendations
 
@@ -224,5 +218,10 @@ def lambda_handler(event, context):
 
     return {
         'statusCode': HTTPStatus.OK.value,
+        'headers': {
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
+        },
         'body': json.dumps(graph_model)
     }

@@ -75,23 +75,28 @@ const SpotifyInterface = ({ activePlaylist, setPlaylists, setTracks, setSpotifyT
                 Authorization: `Bearer ${token}`
             }
         }).then((response) => {
-            let playlist = response.data.items.map(track => {
-                return {...track, features: retrieveTrackAudioFeatures(track.id)}
-            });
-
-            setTracks(playlist);
+            retrieveAudioFeatures(response.data.items);
         }).catch((err) => console.log(err));
     };
 
-    const retrieveTrackAudioFeatures = (trackId) => {
-        axios.get(`https://api.spotify.com/v1/audio-features/${trackId}`, {
+    const retrieveAudioFeatures = (tracks) => {
+        const songIds = tracks.map(track => track.track.id).join(',');
+
+        axios.get('https://api.spotify.com/v1/audio-features', {
+            params: {
+                ids: songIds
+            },
             headers: {
                 Authorization: `Bearer ${token}`
             }
         }).then((response) => {
-            return response
-        }).catch((err) => console.log(err));
-    }
+            const playlist = tracks.map(function (e, i) {
+                return {features: response.data.audio_features[i], id: e.track.uri, track_name: e.track.name, track_artist: e.track.artists[0].name}
+            });
+
+            setTracks(playlist)
+        })
+    };
 
     return (
         <div style={{marginTop: '30px'}}>
