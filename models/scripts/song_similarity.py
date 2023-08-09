@@ -2,6 +2,8 @@ import torch
 import pandas as pd
 from annoy import AnnoyIndex
 
+#need to generate new song embeddings
+
 def load_index_and_query(new_songs_path, index_path, top_k, output_path):
     # Load new songs from PyTorch file
     new_songs = torch.load(new_songs_path)
@@ -43,3 +45,5 @@ def load_index_and_query(new_songs_path, index_path, top_k, output_path):
 
 # Example of how to call the function
 load_index_and_query('new_songs.pt', 'models/data/annoy_index.ann', 5, 'models/data/')
+
+#logic check to make sure not returning songs already in the playlist. 

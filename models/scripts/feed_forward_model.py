@@ -25,8 +25,8 @@ model = MLP(input_dim, hidden_dim, output_dim).to(device)
 input_dim = features.shape[1]  
 
 # Assume that each embedding has size 8
-output_dim = 8  
-hidden_dim = 16  
+output_dim = 10  
+hidden_dim = 64
 
 model = MLP(input_dim, hidden_dim, output_dim).to(device)
 optimizer = optim.Adam(model.parameters(), lr=0.01)
