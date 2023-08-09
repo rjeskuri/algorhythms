@@ -3,7 +3,8 @@ This script is intended to generate embeddings on the entire data object using a
 Prompt 1 (required) : mode of training, which could be 'distributedGPU', 'distributedCPU' or 'non-distributed'
 Prompt 2 (required) : Name of model*.pkl file, from '/saved_files/model_artefacts' to use for training.
 Prompt 3 (required) : Name of 'version' folder, from '/saved_files/data_representations' to use for training.
-Prompt 4 (optional) : Percentile cutoff for edge-weights to generate embeddings. Edge weights above this percentile cutoff will be kept. Default : 0.1
+Prompt 4 (required) : Hidden layer size of model.pkl file
+Prompt 5 (optional) : Percentile cutoff for edge-weights to generate embeddings. Edge weights above this percentile cutoff will be kept. Default : 0.1
 
 """
 
@@ -41,7 +42,8 @@ def main_gpu(rank, world_size):
 
     # Gather model and set to eval mode
     modelChoice = sys.argv[2]
-    model = getModel(dataBaseDirectory,modelChoice)
+    hiddensz = int(sys.argv[4])
+    model = getModel(dataBaseDirectory,modelChoice,hiddensz)
     model.eval()
     # Perform the forward pass on each GPU
     with torch.no_grad():
@@ -89,7 +91,8 @@ def main_cpu(rank, world_size):
 
     # Gather model and set to eval mode
     modelChoice = sys.argv[2]
-    model = getModel(dataBaseDirectory,modelChoice)
+    hiddensz = int(sys.argv[4])
+    model = getModel(dataBaseDirectory,modelChoice,hiddensz)
     model = model.to(rank)
     model = DDP(model, device_ids=[rank])  # Wrap the model with DDP for distributed data parallel
 
@@ -134,11 +137,11 @@ def getData(dataBaseDirectory,dataVersion):
     return data
 
 
-def getModel(dataBaseDirectory,modelChoice):
+def getModel(dataBaseDirectory,modelChoice,hiddensz):
     modelDirectoryPath = dataBaseDirectory + "/saved_files/model_artefacts"
     file_path = '{}/{}'.format(modelDirectoryPath, modelChoice)
 
-    model = GCN(num_features=data.x.size(1), hidden_size=16, embedding_size=10)
+    model = GCN(num_features=data.x.size(1), hidden_size=hiddensz, embedding_size=10)
     model.load_state_dict(torch.load(file_path))
     return model
 
@@ -173,12 +176,13 @@ class GCN(pyg_nn.MessagePassing):
 
 if __name__ == "__main__":
 
-    if len(sys.argv) < 4:
+    if len(sys.argv) < 5:
         print("""
         Total of 3 arguments are required:
         Argument 1 : Mode of training. Choice of 'distributedGPU' or 'distributedCPU' or 'non-distributed' mode.
         Argument 2 : Name of the model pickle file as seen in '/saved_files/model_artefacts'
         Argument 3 : Name of the version folder of the data to use as seen in '/saved_files/data_representations'
+        Argument 4 : Hidden layer size of model.pkl chosen in argument 2
         Please retry again and make sure to pass atleast these 3 arguments.
         """)
         sys.exit(1)  # Exit with a non-zero status code to indicate an error
@@ -186,6 +190,7 @@ if __name__ == "__main__":
     mode = sys.argv[1]
     modelChoice = sys.argv[2]
     dataVersion = sys.argv[3]
+    hiddensz = int(sys.argv[4])
     print("Mode chosen : '{}'".format(mode))
 
     '''
@@ -211,7 +216,7 @@ if __name__ == "__main__":
         mp.spawn(main_cpu, args=(world_size,), nprocs=world_size)
     elif mode == 'non-distributed':
         data = getData(dataBaseDirectory,dataVersion)
-        model = getModel(dataBaseDirectory,modelChoice)
+        model = getModel(dataBaseDirectory,modelChoice,hiddensz)
 
         # Move the model and data to the GPU,if applicable
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -222,9 +227,9 @@ if __name__ == "__main__":
 
         # Trim down the edge weights to be able to generate embeddings for significant edge weights
 
-        if len(sys.argv) > 4:
+        if len(sys.argv) > 5:
             try:
-                percentile = float(sys.argv[4])
+                percentile = float(sys.argv[5])
             except:
                 print("Error: Invalid percentile value provided. Going for default....")
                 percentile = 0.1 # Setting the default
