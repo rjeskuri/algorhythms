@@ -1,7 +1,5 @@
 
-import io
 import os
-from urllib.parse import urlparse
 from http import HTTPStatus
 import json
 import joblib
@@ -9,14 +7,11 @@ import pickle
 
 import boto3
 from elasticsearch import Elasticsearch
-from smart_open import open as smart_open
 import numpy as np
-from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
 
 
 DATABASE_URL = os.environ['DATABASE_URL']
 DATABASE_INDEX = os.environ['DATABASE_INDEX']
-DATABASE_CS_INDEX = os.environ['DATABASE_CS_INDEX']
 DATABASE_USER = os.environ['DATABASE_USER']
 DATABASE_PASS = os.environ['DATABASE_PASS']
 

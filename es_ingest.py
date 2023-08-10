@@ -1,11 +1,9 @@
 
 import argparse
-import os
 import pickle
 
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
-import pandas as pd
 
 
 DEFAULT_ELASTICSEARCH_URL = 'http://localhost:9200'
