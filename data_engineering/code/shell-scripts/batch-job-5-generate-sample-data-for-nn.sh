@@ -28,5 +28,5 @@ spark-submit --master ${SPARK_MASTER_URL} \
   --executor-cores 1 \
   --executor-memory 5G \
   --total-executor-cores 70 \
-  --py-files /home/anilcm/capstone_project/algorhythms/data_engineering/code/dependencies.zip \
+  --py-files ../code/dependencies.zip \
   ../5_generate_sample_data_for_neuralnetwork.py "$sample_size"

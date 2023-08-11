@@ -24,5 +24,5 @@ source ${HOME}/.spark-local/${SLURM_JOB_ID}/spark/conf/spark-env.sh
 spark-submit --executor-cores 1 \
   --executor-memory 5G \
   --total-executor-cores 70 \
-  --py-files /home/anilcm/capstone_project/algorhythms/data_engineering/code/dependencies.zip \
+  --py-files ../code/dependencies.zip \
   ../2.3_gather_unique_trackid_trackname_artistname.py

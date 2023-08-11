@@ -27,5 +27,5 @@ file_choice=${1:-all}
 spark-submit --executor-cores 1 \
   --executor-memory 5G \
   --total-executor-cores 70 \
-  --py-files /home/anilcm/capstone_project/algorhythms/data_engineering/code/dependencies.zip \
+  --py-files ../code/dependencies.zip \
   ../2.2_spotifyapi_tracks_from_csv_to_sparktables.py "$file_choice"
