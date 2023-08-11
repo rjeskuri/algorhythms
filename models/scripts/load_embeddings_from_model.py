@@ -32,7 +32,8 @@ def main_gpu(rank, world_size):
     # Set the device based on the rank
     device = torch.device("cuda:{}".format(rank))
 
-    dataBaseDirectory = '/scratch/siads699s23_class_root/siads699s23_class/shared_data/team_16_algorhythms/data/spark_table_warehouse'
+    dataBaseDirectory = getBaseDirectoryOfData()
+
     dataVersion = sys.argv[3]
     data = getData(dataBaseDirectory,dataVersion)
 
@@ -81,7 +82,7 @@ def main_cpu(rank, world_size):
     address = 'tcp://{}:{}'.format(master_ip, port)
     dist.init_process_group(backend='gloo', init_method=address, rank=rank, world_size=world_size)
 
-    dataBaseDirectory = '/scratch/siads699s23_class_root/siads699s23_class/shared_data/team_16_algorhythms/data/spark_table_warehouse'
+    dataBaseDirectory = getBaseDirectoryOfData()
     dataVersion = sys.argv[3]
     data = getData(dataBaseDirectory,dataVersion)
     print("Moving 'data' to CPUs.....")
@@ -114,6 +115,14 @@ def main_cpu(rank, world_size):
     print("Saving embeddings for data to : {}".format(embedding_file_name))
     with open(embedding_file_name, 'wb') as file:
         pickle.dump(embeddings, file)
+
+def getBaseDirectoryOfData():
+    config_options = configparser.ConfigParser()
+    script_directory = os.path.dirname(os.path.abspath(__file__))
+    conf_dir = os.path.join(script_directory, 'conf')
+    config_options.read(os.path.join(conf_dir, 'models.conf'))
+    dataBaseDirectory = dict(config_options.items("MODELS_CONFIGS")).get('datawarehousedir')
+    return dataBaseDirectory
 
 def getData(dataBaseDirectory,dataVersion):
     # Load 'data' object directly from saved pickle file that was created earlier
@@ -193,16 +202,7 @@ if __name__ == "__main__":
     hiddensz = int(sys.argv[4])
     print("Mode chosen : '{}'".format(mode))
 
-    '''
-    # Uncomment once the '../../data_engineering/code/conf' directory is available to access
-    config_options = configparser.ConfigParser()
-    conf_dir = os.environ.get('SPARK_CONF_DIR') or '../../data_engineering/code/conf'  # Options to support Spark CLuster and local modes
-    config_options.read('{}/spark.conf'.format(conf_dir))  # Load entries defined in 'spark-start' shell script
-    dataBaseDirectory = dict(config_options.items("SPARK_APP_CONFIGS")).get('spark.sql.warehouse.dir')
-    '''
-
-    # REMOVE later : The below line of code is temporary while data_engineering code has not been merged
-    dataBaseDirectory = '/scratch/siads699s23_class_root/siads699s23_class/shared_data/team_16_algorhythms/data/spark_table_warehouse'
+    dataBaseDirectory = getBaseDirectoryOfData()
     print("Base directory for data is located at : {} \n".format(dataBaseDirectory))
     print("Is torch cuda available? : {}".format(torch.cuda.is_available()))
 

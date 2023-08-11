@@ -27,22 +27,18 @@ print("Is torch cuda available? : {}".format(torch.cuda.is_available()))
 
 if __name__ == "__main__":
 
-    '''
-    # Uncomment once the '../../data_engineering/code/conf' directory is available to access 
     config_options = configparser.ConfigParser()
-    conf_dir = os.environ.get('SPARK_CONF_DIR') or '../../data_engineering/code/conf'  # Options to support Spark CLuster and local modes
-    config_options.read('{}/spark.conf'.format(conf_dir))  # Load entries defined in 'spark-start' shell script
-    dataBaseDirectory = dict(config_options.items("SPARK_APP_CONFIGS")).get('spark.sql.warehouse.dir')
-    '''
-    # REMOVE later : The below line of code is temporary while data_engineering code has not been merged
-    dataBaseDirectory = '/scratch/siads699s23_class_root/siads699s23_class/shared_data/team_16_algorhythms/data/spark_table_warehouse'
+    script_directory = os.path.dirname(os.path.abspath(__file__))
+    conf_dir = os.path.join(script_directory, 'conf')
+    config_options.read(os.path.join(conf_dir, 'models.conf'))
+    dataBaseDirectory = dict(config_options.items("MODELS_CONFIGS")).get('datawarehousedir')
 
     print("Base directory for data is located at : {} \n".format(dataBaseDirectory))
 
     if len(sys.argv) < 2:
         print("""
-        Error: Data version information not provided as argument. 
-        E.g. 'version_20230726_123356', which has to be valid folder with contents in 'saved_folder/data_representations'. 
+        Error: Data version information not provided as argument.
+        E.g. 'version_20230726_123356', which has to be valid folder with contents in 'saved_folder/data_representations'.
         Path to review the contents is : {}.
         """.format(dataBaseDirectory))
         sys.exit(1)  # Exit with a non-zero status code to indicate an error
@@ -84,7 +80,7 @@ if __name__ == "__main__":
         matching_file = glob.glob(search_path)[0]
     except:
         print("""
-        Error: Check if folder you provided as argument exists inside 'saved_folder/data_representations'. 
+        Error: Check if folder you provided as argument exists inside 'saved_folder/data_representations'.
         Path to review the contents is : {}.
         """.format(dataBaseDirectory))
         sys.exit(1)  # Exit with a non-zero status code to indicate an error
@@ -135,7 +131,7 @@ if __name__ == "__main__":
         """
         Idea behind below code: We essentially need to 're-index' values in edge_index_prelim
         E.g. if it used to refer to an edge as source as 117123 node and target as 856432 node in the original 'data'
-        , we need to find their relative position with the nodes we have filtered down into our new dataset nodes. 
+        , we need to find their relative position with the nodes we have filtered down into our new dataset nodes.
         Since the node indices is essentially an 'arange' (i.e. from 0 till length of tensor), it makes it easy to find the nodes position
         from 'new_node_indices' and use that to create the new source and target edge indices.
         Stack the source and edge indices to get back a new edge_index that is same shape as old one
