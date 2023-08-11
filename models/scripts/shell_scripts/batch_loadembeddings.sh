@@ -15,9 +15,6 @@
 # depending on which cluster you are on.
 module load python/3.10.4 pyarrow/8.0.0 cuda cudnn
 
-# CHANGE this to be the virtual environment used
-# source /home/anilcm/myenv/bin/activate
-
 mode="$1"
 modelchoice="$2"
 dataversion="$3"
