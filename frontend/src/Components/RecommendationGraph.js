@@ -76,7 +76,7 @@ const RecommendationGraph = ({ recommendations, setPlaybackSong }) => {
     };
 
     return (
-        <div ref={div} style={{width: '100%', height: '80vh', marginTop: '30px', marginBottom: '-30px', marginRight: '-30px', backgroundColor: '#2E5E4E', borderRadius: '10px'}}>
+        <div ref={div} style={{width: '100%', height: '75vh', marginTop: '30px', marginBottom: '-30px', marginRight: '-30px', backgroundColor: '#2E5E4E', borderRadius: '10px'}}>
             <Graph
                 id="recommendation-graph"
                 data={data()}
