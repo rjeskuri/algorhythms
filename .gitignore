@@ -1,3 +1,8 @@
 *.pkl
-*.ipynb
 *.joblib
+data_engineering/code/conf/env-secrets.conf
+data_engineering/code/conf/virtual_env.sh
+data_engineering/code/.cache
+slurm-*.out
+__pycache__/
+.ipynb_checkpoints
