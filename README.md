@@ -60,7 +60,7 @@ The embeddings for the 2.2+ million songs in the dataset produced by the graph c
 
 ## Backend
 
-The AlgoRhythms backend is a REST API endpoint that creates recommendations based on a list of provided songs. It is implemented as a Lambda function and is thus dependent on being deployed to AWS Lambda. The lambda function requires a layer to be built that contains the dependencies located in the [requirements.txt](./backend/requirements.txt). The required runtime is `Python 3.10`.
+The AlgoRhythms backend is a REST API endpoint that creates recommendations based on a list of provided songs. It is implemented as a Lambda function and is thus dependent on being deployed to AWS Lambda. The Lambda function requires a layer to be built that contains the dependencies located in the [requirements.txt](./backend/requirements.txt). The required runtime is `Python 3.10`.
 
 The layer can be built as a zip file in Shell using the following commands. The only required dependency to build the layer is Docker. This will produce a zip file containing the dependencies that should be sufficiently sized to use as a Lambda layer.
 
@@ -112,38 +112,37 @@ The endpoint accepts `POST` requests with a JSON body. The schema is as follows:
 
 ```json
 {
-    "count": int,   // Number of recommendations to return
+    "count": "int",   // Number of recommendations to return
     "songs": [
         {
-            "id": string,   // Spotify uri for the track
+            "id": "string",   // Spotify uri for the track
             "features": {   // Track audio feature vector obtained from this API endpoint: https://developer.spotify.com/documentation/web-api/reference/get-audio-features
-                "acousticness": float,
-                "danceability": float,
-                "duration_ms": int,
-                "energy": float,
-                "instrumentalness": float,
-                "key": int,
-                "liveness": float,
-                "loudness": float,
-                "mode": int,
-                "speechiness": float,
-                "tempo": float,
-                "time_signature": int,
-                "valence": float
+                "acousticness": "float",
+                "danceability": "float",
+                "duration_ms": "int",
+                "energy": "float",
+                "instrumentalness": "float",
+                "key": "int",
+                "liveness": "float",
+                "loudness": "float",
+                "mode": "int",
+                "speechiness": "float",
+                "tempo": "float",
+                "time_signature": "int",
+                "valence": "float"
             }
         },
-        ...
     ]
 }
 ```
 
 ## Frontend
 
-The frontend is implemented using ReactJS. It is hosted at the following URL: [http://algorhythms-frontend.s3-website-us-east-1.amazonaws.com/](http://algorhythms-frontend.s3-website-us-east-1.amazonaws.com/). Due to the Spotify developer API being restricted for student projects, it requires that a users Spotify account be manually added to an access list to operate correctly.
+The frontend is implemented using ReactJS. It is hosted at the following URL: [http://algorhythms-frontend.s3-website-us-east-1.amazonaws.com/](http://algorhythms-frontend.s3-website-us-east-1.amazonaws.com/). Due to the Spotify developer API being restricted for student projects, it requires that a user's Spotify account be manually added to an access list to operate correctly.
 
 It accesses the AlgoRhythms backend and the Spotify Developer API over HTTP request, and thus is dependent on the AlgoRhythms backend still being hosted and having a valid Spotify account with developer access to the application.
 
-To build and deploy the frontend, you will need NodeJS version `16.0` or greater and to run the following commands at shell or Windows command prompt.
+To build and deploy the frontend, you will need NodeJS version `18.0` or greater and to run the following commands at shell or Windows command prompt.
 
 ```sh
 cd ./frontend
