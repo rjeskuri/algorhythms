@@ -215,8 +215,9 @@ def main():
                 'count': 5,
                 'songs': songs
             }
-            playlist_length_data[i].append(query_backend(query))
-            print(f'{i} - {_}')
+            runtime = query_backend(query)
+            playlist_length_data[i].append(runtime)
+            print(f'{i} - {_} - {runtime}')
     
 
     # Retrieve data for varying number of requested recommendations
@@ -228,8 +229,9 @@ def main():
                 'count': i,
                 'songs': SONGS
             }
-            recommendation_length_data[i].append(query_backend(query))
-            print(f'{i} - {_}')
+            runtime = query_backend(query)
+            recommendation_length_data[i].append(runtime)
+            print(f'{i} - {_} - {runtime}')
     
     playlist_data = [np.mean(data) for data in playlist_length_data.values()]
     playlist_errors = [np.std(data) for data in playlist_length_data.values()]
@@ -250,7 +252,7 @@ def main():
     ax1.set_title('Length of query playlist')
     ax1.yaxis.grid(True)
 
-    ax2.bar(recommendation_x_pos, recommendation_data, yerr=recommendation_data, align='center', alpha=0.5, ecolor='black', capsize=10)
+    ax2.bar(recommendation_x_pos, recommendation_data, yerr=recommendation_errors, align='center', alpha=0.5, ecolor='black', capsize=10)
     ax2.set_ylabel('POST Request Runtime (s)')
     ax2.set_xticks(recommendation_x_pos)
     ax2.set_xticklabels(recommendation_x_labels)
