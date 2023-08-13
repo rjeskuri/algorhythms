@@ -1,10 +1,8 @@
-<<<<<<< HEAD
 *.pkl
 *.joblib
-=======
 data_engineering/code/conf/env-secrets.conf
 data_engineering/code/conf/virtual_env.sh
 data_engineering/code/.cache
 slurm-*.out
 __pycache__/
->>>>>>> 7e4d78f4af0005adc4c42dc3ae23ea249070a17f
+.ipynb_checkpoints

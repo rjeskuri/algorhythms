@@ -1,0 +1,6 @@
+pandas
+annoy
+torch
+torch_geometric
+torchvision
+torchaudio

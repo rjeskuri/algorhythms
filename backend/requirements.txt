@@ -1,3 +1,5 @@
 elasticsearch
-smart_open
 joblib
+scikit-learn
+boto3
+numpy
