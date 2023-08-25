@@ -1,5 +1,6 @@
 # AlgoRhythms
-full report can be found here: https://docs.google.com/document/d/1NSIkPyi5sN-rwQRpyiydDvuOcMkwUkvSX9ed9Z88ZQE/edit?usp=sharing
+Full report can be found here: https://docs.google.com/document/d/1NSIkPyi5sN-rwQRpyiydDvuOcMkwUkvSX9ed9Z88ZQE/edit?usp=sharing
+
 AlgoRhythms is a proof-of-concept Spotify recommendation engine developed as a capstone project by three students at the University of Michigan. It utilizes the Spotify Million Playlists dataset as a basis to inform its knowledge of the relationships between songs.
 
 Description of the dataset used as well as instructions for access are located here: [https://www.aicrowd.com/challenges/spotify-million-playlist-dataset-challenge](https://www.aicrowd.com/challenges/spotify-million-playlist-dataset-challenge). By accepting participation in the challenge we agreed to limitations not to "identify any individuals from the Spotify Data, use the Spotify Data or any data derived therefrom for any commercial purpose, or reverse engineer any aspect of Spotify’s technology or data."
